@@ -9,8 +9,8 @@ import {
   FlatResource, HeaderTier, SlotDuration,
   DragState, ResizeState,
   EventClickArg, EventChangeArg, DateClickArg, SelectArg, DatesSetArg, ResourceClickArg
-} from './ngx-timeline-calendar.types';
-import { NgxTimelineCalendarService } from './ngx-timeline-calendar.service';
+} from './ds-timeline.types';
+import { DsTimelineService } from './ds-timeline.service';
 
 export interface SelectionState {
   resourceId: string;
@@ -28,7 +28,7 @@ export interface HoverTooltip {
 }
 
 @Component({
-  selector: 'ngx-timeline-calendar',
+  selector: 'ds-timeline',
   standalone: false,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -427,7 +427,7 @@ export interface HoverTooltip {
     .ntc-evt-tooltip-badge { font-size: 10px; background: rgba(255,71,87,0.18); color: #ff6b78; padding: 2px 8px; border-radius: 8px; font-weight: 700; }
   `]
 })
-export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestroy, DoCheck {
+export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoCheck {
 
   @ViewChild('timelineEl') timelineEl!: ElementRef<HTMLDivElement>;
   @ViewChild('resRows')    resRowsEl!:  ElementRef<HTMLDivElement>;
@@ -515,7 +515,7 @@ export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestro
   private nowTimer: any;
   private prevEventsLength = 0;
 
-  constructor(public svc: NgxTimelineCalendarService, private cdr: ChangeDetectorRef) {}
+  constructor(public svc: DsTimelineService, private cdr: ChangeDetectorRef) {}
 
   // ===== LIFECYCLE =====
   ngOnInit() {

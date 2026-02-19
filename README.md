@@ -1,4 +1,4 @@
-# ngx-timeline-calendar
+# ds-timeline
 
 An Angular resource-timeline calendar component inspired by FullCalendar's Timeline view. Supports drag-and-drop, resize, drag-to-select, nested resources, overlap modes, theming, and more — compatible with **Angular 6 through 20+**.
 
@@ -48,22 +48,22 @@ An Angular resource-timeline calendar component inspired by FullCalendar's Timel
 ## Installation
 
 ```bash
-npm install ngx-timeline-calendar
+npm install ds-timeline
 ```
 
 ---
 
 ## Module Setup
 
-Import `NgxTimelineCalendarModule` into your Angular module:
+Import `DsTimelineModule` into your Angular module:
 
 ```typescript
 import { NgModule } from '@angular/core';
-import { NgxTimelineCalendarModule } from 'ngx-timeline-calendar';
+import { DsTimelineModule } from 'ds-timeline';
 
 @NgModule({
   imports: [
-    NgxTimelineCalendarModule
+    DsTimelineModule
   ]
 })
 export class AppModule {}
@@ -74,18 +74,18 @@ export class AppModule {}
 ## Basic Usage
 
 ```html
-<ngx-timeline-calendar
+<ds-timeline
   [events]="events"
   [resources]="resources"
   (eventClick)="onEventClick($event)"
   (eventChange)="onEventChange($event)"
   (select)="onSelect($event)">
-</ngx-timeline-calendar>
+</ds-timeline>
 ```
 
 ```typescript
 import { Component } from '@angular/core';
-import { CalendarEvent, CalendarResource } from 'ngx-timeline-calendar';
+import { CalendarEvent, CalendarResource } from 'ds-timeline';
 
 @Component({ ... })
 export class AppComponent {
@@ -308,12 +308,12 @@ interface ResourceClickArg {
 **`resourceClick` example:**
 
 ```html
-<ngx-timeline-calendar (resourceClick)="onResourceClick($event)">
-</ngx-timeline-calendar>
+<ds-timeline (resourceClick)="onResourceClick($event)">
+</ds-timeline>
 ```
 
 ```typescript
-import { ResourceClickArg } from 'ngx-timeline-calendar';
+import { ResourceClickArg } from 'ds-timeline';
 
 onResourceClick(arg: ResourceClickArg) {
   console.log('Clicked resource:', arg.resource.id, arg.resource.title);
@@ -328,11 +328,11 @@ onResourceClick(arg: ResourceClickArg) {
 Obtain a reference to the component with `@ViewChild`, then call these methods programmatically:
 
 ```html
-<ngx-timeline-calendar #cal ...></ngx-timeline-calendar>
+<ds-timeline #cal ...></ds-timeline>
 ```
 
 ```typescript
-@ViewChild('cal') cal!: NgxTimelineCalendarComponent;
+@ViewChild('cal') cal!: DsTimelineComponent;
 ```
 
 | Method | Signature | Description |
@@ -396,7 +396,7 @@ Each event's resize behaviour is controlled at three levels:
 
 ```html
 <!-- Disable all editing for every event -->
-<ngx-timeline-calendar [editable]="false">
+<ds-timeline [editable]="false">
 ```
 
 ### 2. Per-event — disable all editing
@@ -444,7 +444,7 @@ const event: CalendarEvent = {
 Events freely overlap in the same resource row. All events remain fully interactive regardless of overlap.
 
 ```html
-<ngx-timeline-calendar [eventOverlap]="'multiple'">
+<ds-timeline [eventOverlap]="'multiple'">
 ```
 
 ### `'single'`
@@ -457,7 +457,7 @@ Only one event is allowed per time slot per resource. When a later event in the 
 - Dragging another event into an occupied slot is blocked.
 
 ```html
-<ngx-timeline-calendar [eventOverlap]="'single'">
+<ds-timeline [eventOverlap]="'single'">
 ```
 
 The **first** event in the `events` array that occupies a given time range is considered the "winner". All subsequent overlapping events on the same resource are marked blocked.
@@ -469,8 +469,8 @@ The **first** event in the `events` array that occupies a given time range is co
 ### Built-in themes
 
 ```html
-<ngx-timeline-calendar [theme]="'light'">  <!-- default -->
-<ngx-timeline-calendar [theme]="'dark'">
+<ds-timeline [theme]="'light'">  <!-- default -->
+<ds-timeline [theme]="'dark'">
 ```
 
 ### CSS custom properties
@@ -478,7 +478,7 @@ The **first** event in the `events` array that occupies a given time range is co
 All colors are driven by CSS variables. Override them on the host element in your global stylesheet:
 
 ```css
-ngx-timeline-calendar {
+ds-timeline {
   --ntc-primary:    #7c3aed;               /* accent color, today highlight */
   --ntc-bg:         #ffffff;               /* main background */
   --ntc-surface:    #f8f9fa;               /* hover/surface background */

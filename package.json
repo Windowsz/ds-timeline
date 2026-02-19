@@ -1,12 +1,12 @@
 {
-  "name": "ngx-timeline-calendar-workspace",
+  "name": "ds-timeline-workspace",
   "version": "2.1.0",
   "private": true,
   "scripts": {
     "ng": "ng",
     "start": "ng serve --project demo",
     "build": "ng build demo",
-    "build:lib": "ng build ngx-timeline-calendar"
+    "build:lib": "ng build ds-timeline"
   },
   "dependencies": {
     "@angular/animations": ">=6.0.0",

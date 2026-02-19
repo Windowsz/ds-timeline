@@ -1,9 +1,9 @@
 import { Component, ViewChild, OnInit, ElementRef, AfterViewChecked } from '@angular/core';
 import {
-  NgxTimelineCalendarComponent,
+  DsTimelineComponent,
   CalendarEvent, CalendarResource, CalendarView,
   DatesSetArg, EventClickArg, EventChangeArg, DateClickArg, SelectArg, ResourceClickArg
-} from '../../projects/ngx-timeline-calendar/src/public-api';
+} from '../../projects/ds-timeline/src/public-api';
 
 @Component({
   selector: 'app-root',
@@ -17,7 +17,7 @@ import {
           <div class="demo-brand">
             <span class="demo-brand-icon">&#128197;</span>
             <div>
-              <div class="demo-brand-name">ngx-timeline-calendar</div>
+              <div class="demo-brand-name">ds-timeline</div>
               <div class="demo-brand-tag">Angular 6 &rarr; 20+ &bull; Drag-Select &bull; Hover Tooltip &bull; Overlap Modes</div>
             </div>
           </div>
@@ -109,7 +109,7 @@ import {
 
       <!-- Calendar -->
       <div class="demo-cal-wrap">
-        <ngx-timeline-calendar
+        <ds-timeline
           #cal
           [events]="events"
           [resources]="resources"
@@ -132,7 +132,7 @@ import {
           (datesSet)="onDatesSet($event)"
           (select)="onSelect($event)"
           (resourceClick)="onResourceClick($event)">
-        </ngx-timeline-calendar>
+        </ds-timeline>
       </div>
 
       <!-- ===== SELECTION DIALOG ===== -->
@@ -248,7 +248,7 @@ import {
 
     /* CAL */
     .demo-cal-wrap { max-width: 1440px; margin: 12px auto; padding: 0 24px; height: 530px; }
-    .demo-cal-wrap ngx-timeline-calendar { height: 100%; display: block; }
+    .demo-cal-wrap ds-timeline { height: 100%; display: block; }
 
     /* DIALOG OVERLAY */
     .demo-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(3px); animation: fade-in 0.15s ease; }
@@ -302,7 +302,7 @@ import {
   `]
 })
 export class AppComponent implements OnInit, AfterViewChecked {
-  @ViewChild('cal')        cal!: NgxTimelineCalendarComponent;
+  @ViewChild('cal')        cal!: DsTimelineComponent;
   @ViewChild('titleInput') titleInputRef!: ElementRef<HTMLInputElement>;
 
   theme: 'light' | 'dark' = 'light';
