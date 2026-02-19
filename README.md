@@ -39,6 +39,8 @@ An Angular resource-timeline calendar component inspired by FullCalendar's Timel
 - **Light / Dark themes** — full CSS variable theming
 - **12h / 24h time format** — configurable header and event labels
 - **OnPush change detection** — optimized for performance
+- **Resource click** — `resourceClick` output fires when the user clicks a resource row
+- **Resource column scroll** — hovering over the resource column and scrolling moves the timeline, matching the behaviour of the time header
 - **Zero external dependencies** — pure Angular, no third-party libraries required
 
 ---
@@ -154,6 +156,7 @@ export class AppComponent {
 | `selecting` | `SelectArg` | Fires continuously while the user is drag-selecting. |
 | `viewChange` | `{ view, start, end }` | User switches between Day / Week / Month views. |
 | `datesSet` | `DatesSetArg` | Fires on initial render and whenever the visible date range changes. |
+| `resourceClick` | `ResourceClickArg` | User clicks a row in the resource column. |
 
 ---
 
@@ -294,6 +297,27 @@ interface DatesSetArg {
   start: Date;    // First visible date of the current view
   end: Date;      // Last visible date (exclusive)
   title: string;  // Formatted display title, e.g. "Feb 2026"
+}
+
+interface ResourceClickArg {
+  resource: CalendarResource; // The resource that was clicked
+  jsEvent: MouseEvent;        // The native mouse event
+}
+```
+
+**`resourceClick` example:**
+
+```html
+<ngx-timeline-calendar (resourceClick)="onResourceClick($event)">
+</ngx-timeline-calendar>
+```
+
+```typescript
+import { ResourceClickArg } from 'ngx-timeline-calendar';
+
+onResourceClick(arg: ResourceClickArg) {
+  console.log('Clicked resource:', arg.resource.id, arg.resource.title);
+  console.log('Extended props:',  arg.resource.extendedProps);
 }
 ```
 
@@ -513,6 +537,7 @@ The demo showcases:
 - Cross-row drag toggle (`allowResourceDrag`)
 - Random event generator
 - Drag-to-select with a dialog to create events
+- Resource column click (`resourceClick`) logged in real time
 - Event log panel showing all emitted output events in real time
 
 **Sample resource structure used in the demo:**
