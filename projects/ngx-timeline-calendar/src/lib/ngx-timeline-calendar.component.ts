@@ -63,7 +63,7 @@ export interface HoverTooltip {
       <div class="ntc-body">
 
         <!-- Resource column -->
-        <div class="ntc-res-col" [style.width.px]="resourceAreaWidth">
+        <div class="ntc-res-col" [style.width.px]="resourceAreaWidth" (wheel)="onResColWheel($event)">
           <div class="ntc-res-header" [style.height.px]="headerHeight">
             <span class="ntc-res-header-text">{{ resourceAreaHeaderContent }}</span>
           </div>
@@ -757,6 +757,11 @@ export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestro
   onScroll(e: Event) {
     const el = e.target as HTMLElement;
     if (this.resRowsEl) this.resRowsEl.nativeElement.scrollTop = el.scrollTop;
+  }
+
+  onResColWheel(e: WheelEvent) {
+    e.preventDefault();
+    if (this.timelineEl) this.timelineEl.nativeElement.scrollTop += e.deltaY;
   }
 
   // ===== EVENT CLICK =====
