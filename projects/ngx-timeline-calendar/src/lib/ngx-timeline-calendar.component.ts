@@ -8,7 +8,7 @@ import {
   CalendarEvent, CalendarResource, CalendarView,
   FlatResource, HeaderTier, SlotDuration,
   DragState, ResizeState,
-  EventClickArg, EventChangeArg, DateClickArg, SelectArg, DatesSetArg
+  EventClickArg, EventChangeArg, DateClickArg, SelectArg, DatesSetArg, ResourceClickArg
 } from './ngx-timeline-calendar.types';
 import { NgxTimelineCalendarService } from './ngx-timeline-calendar.service';
 
@@ -72,7 +72,8 @@ export interface HoverTooltip {
               class="ntc-res-row"
               [ngClass]="{ 'ntc-res-group': res.isGroup }"
               [style.height.px]="rowHeight"
-              [style.paddingLeft.px]="res.level * 18 + 10">
+              [style.paddingLeft.px]="res.level * 18 + 10"
+              (click)="onResourceClick($event, res)">
               <button *ngIf="res.isGroup" class="ntc-expand-btn" type="button"
                 (click)="toggleResource(res)">{{ res.expanded ? '&#9660;' : '&#9658;' }}</button>
               <div class="ntc-res-info">
@@ -471,13 +472,14 @@ export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestro
   @Input() allowResourceDrag = true;
 
   // ===== OUTPUTS =====
-  @Output() eventClick  = new EventEmitter<EventClickArg>();
-  @Output() eventChange = new EventEmitter<EventChangeArg>();
-  @Output() dateClick   = new EventEmitter<DateClickArg>();
-  @Output() select      = new EventEmitter<SelectArg>();
-  @Output() selecting   = new EventEmitter<SelectArg>();
-  @Output() viewChange  = new EventEmitter<{ view: CalendarView; start: Date; end: Date }>();
-  @Output() datesSet    = new EventEmitter<DatesSetArg>();
+  @Output() eventClick    = new EventEmitter<EventClickArg>();
+  @Output() eventChange   = new EventEmitter<EventChangeArg>();
+  @Output() dateClick     = new EventEmitter<DateClickArg>();
+  @Output() select        = new EventEmitter<SelectArg>();
+  @Output() selecting     = new EventEmitter<SelectArg>();
+  @Output() viewChange    = new EventEmitter<{ view: CalendarView; start: Date; end: Date }>();
+  @Output() datesSet      = new EventEmitter<DatesSetArg>();
+  @Output() resourceClick = new EventEmitter<ResourceClickArg>();
 
   // ===== STATE =====
   currentView: CalendarView = 'resourceTimelineWeek';
@@ -762,6 +764,11 @@ export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestro
   onResColWheel(e: WheelEvent) {
     e.preventDefault();
     if (this.timelineEl) this.timelineEl.nativeElement.scrollTop += e.deltaY;
+  }
+
+  // ===== RESOURCE CLICK =====
+  onResourceClick(e: MouseEvent, res: FlatResource) {
+    this.resourceClick.emit({ resource: res.original, jsEvent: e });
   }
 
   // ===== EVENT CLICK =====
