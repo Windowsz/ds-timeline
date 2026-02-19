@@ -1,0 +1,11 @@
+{
+  "name": "ngx-timeline-calendar",
+  "version": "2.1.0",
+  "description": "FullCalendar Timeline View clone for Angular 6 through 20+. NgModule-based, zero external dependencies.",
+  "license": "MIT",
+  "peerDependencies": {
+    "@angular/common": ">=6.0.0",
+    "@angular/core": ">=6.0.0"
+  },
+  "sideEffects": false
+}

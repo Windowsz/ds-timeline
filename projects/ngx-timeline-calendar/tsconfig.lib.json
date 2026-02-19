@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strict": false,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "downlevelIteration": true,
+    "declaration": true,
+    "declarationMap": true,
+    "inlineSources": true,
+    "baseUrl": ".",
+    "lib": ["ES2022", "dom"],
+    "skipLibCheck": true,
+    "useDefineForClassFields": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/test.ts", "src/**/*.spec.ts", "node_modules"]
+}
