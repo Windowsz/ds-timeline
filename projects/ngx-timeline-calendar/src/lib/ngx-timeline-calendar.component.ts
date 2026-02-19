@@ -75,7 +75,7 @@ export interface HoverTooltip {
               [style.paddingLeft.px]="res.level * 18 + 10"
               (click)="onResourceClick($event, res)">
               <button *ngIf="res.isGroup" class="ntc-expand-btn" type="button"
-                (click)="toggleResource(res)">{{ res.expanded ? '&#9660;' : '&#9658;' }}</button>
+                (click)="$event.stopPropagation(); toggleResource(res)">{{ res.expanded ? '&#9660;' : '&#9658;' }}</button>
               <div class="ntc-res-info">
                 <span class="ntc-res-name">{{ res.title }}</span>
                 <span class="ntc-res-sub" *ngIf="res.extendedProps && res.extendedProps['subtitle']">
@@ -295,7 +295,7 @@ export interface HoverTooltip {
     .ntc-res-header { display: flex; align-items: center; border-bottom: 1px solid var(--ntc-border); flex-shrink: 0; }
     .ntc-res-header-text { padding: 0 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ntc-muted); }
     .ntc-res-rows { overflow-y: hidden; flex: 1; }
-    .ntc-res-row { display: flex; align-items: center; gap: 5px; border-bottom: 1px solid var(--ntc-border-lt); background: var(--ntc-row-bg); box-sizing: border-box; overflow: hidden; transition: background 0.1s; }
+    .ntc-res-row { display: flex; align-items: center; gap: 5px; border-bottom: 1px solid var(--ntc-border-lt); background: var(--ntc-row-bg); box-sizing: border-box; overflow: hidden; transition: background 0.1s; cursor: pointer; }
     .ntc-res-row:hover { background: var(--ntc-surface); }
     .ntc-res-group { background: var(--ntc-grp-bg) !important; }
     .ntc-expand-btn { background: none; border: none; cursor: pointer; color: var(--ntc-muted); font-size: 10px; padding: 2px 3px; flex-shrink: 0; line-height: 1; }
@@ -931,6 +931,9 @@ export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestro
         if (en.getTime() - s.getTime() >= this.selectMinDuration) {
           this.select.emit({ start: s, end: en, resource });
         }
+      } else if (!moved && state) {
+        // Simple click on a grid cell (no drag) → dateClick
+        this.dateClick.emit({ date: state.startDate, resource, jsEvent: e });
       }
       this.cdr.markForCheck(); return;
     }
