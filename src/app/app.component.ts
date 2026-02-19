@@ -1,9 +1,9 @@
 import { Component, ViewChild, OnInit, ElementRef, AfterViewChecked } from '@angular/core';
 import {
-  NgxTimelineCalendarComponent,
+  DsTimelineComponent,
   CalendarEvent, CalendarResource, CalendarView,
-  DatesSetArg, EventClickArg, EventChangeArg, DateClickArg, SelectArg
-} from '../../projects/ngx-timeline-calendar/src/public-api';
+  DatesSetArg, EventClickArg, EventChangeArg, DateClickArg, SelectArg, ResourceClickArg
+} from '../../projects/ds-timeline/src/public-api';
 
 @Component({
   selector: 'app-root',
@@ -17,7 +17,7 @@ import {
           <div class="demo-brand">
             <span class="demo-brand-icon">&#128197;</span>
             <div>
-              <div class="demo-brand-name">ngx-timeline-calendar</div>
+              <div class="demo-brand-name">ds-timeline</div>
               <div class="demo-brand-tag">Angular 6 &rarr; 20+ &bull; Drag-Select &bull; Hover Tooltip &bull; Overlap Modes</div>
             </div>
           </div>
@@ -109,7 +109,7 @@ import {
 
       <!-- Calendar -->
       <div class="demo-cal-wrap">
-        <ngx-timeline-calendar
+        <ds-timeline
           #cal
           [events]="events"
           [resources]="resources"
@@ -130,8 +130,9 @@ import {
           (eventChange)="onEventChange($event)"
           (dateClick)="onDateClick($event)"
           (datesSet)="onDatesSet($event)"
-          (select)="onSelect($event)">
-        </ngx-timeline-calendar>
+          (select)="onSelect($event)"
+          (resourceClick)="onResourceClick($event)">
+        </ds-timeline>
       </div>
 
       <!-- ===== SELECTION DIALOG ===== -->
@@ -193,7 +194,7 @@ import {
       <div class="demo-log-panel">
         <div class="demo-log-title">&#128203; Event Log</div>
         <div class="demo-log-empty" *ngIf="log.length === 0">
-          Interact with the calendar — drag rows, hover events, click events&hellip;
+          Interact with the calendar — drag rows, hover events, click events, click a resource&hellip;
         </div>
         <div class="demo-log-row" *ngFor="let entry of log.slice().reverse()">
           <span class="log-time">{{ entry.time }}</span>
@@ -247,7 +248,7 @@ import {
 
     /* CAL */
     .demo-cal-wrap { max-width: 1440px; margin: 12px auto; padding: 0 24px; height: 530px; }
-    .demo-cal-wrap ngx-timeline-calendar { height: 100%; display: block; }
+    .demo-cal-wrap ds-timeline { height: 100%; display: block; }
 
     /* DIALOG OVERLAY */
     .demo-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(3px); animation: fade-in 0.15s ease; }
@@ -293,14 +294,15 @@ import {
     .badge-eventClick  { background: #dbeafe; color: #1d4ed8; }
     .badge-eventChange { background: #fef3c7; color: #92400e; }
     .badge-dateClick   { background: #ede9fe; color: #5b21b6; }
-    .badge-datesSet    { background: #f3f4f6; color: #374151; }
-    .badge-addEvent    { background: #d1fae5; color: #065f46; }
+    .badge-datesSet       { background: #f3f4f6; color: #374151; }
+    .badge-addEvent       { background: #d1fae5; color: #065f46; }
+    .badge-resourceClick  { background: #fce7f3; color: #9d174d; }
     .log-msg { color: #212529; flex: 1; }
     .demo-dark .log-msg { color: #e8eaf0; }
   `]
 })
 export class AppComponent implements OnInit, AfterViewChecked {
-  @ViewChild('cal')        cal!: NgxTimelineCalendarComponent;
+  @ViewChild('cal')        cal!: DsTimelineComponent;
   @ViewChild('titleInput') titleInputRef!: ElementRef<HTMLInputElement>;
 
   theme: 'light' | 'dark' = 'light';
@@ -428,10 +430,11 @@ export class AppComponent implements OnInit, AfterViewChecked {
     this.addLog('addEvent', '"' + title + '"');
   }
 
-  onEventClick(arg: EventClickArg)   { this.addLog('eventClick',  '"' + arg.event.title + '"'); }
-  onEventChange(arg: EventChangeArg) { this.addLog('eventChange', 'Moved/resized "' + arg.event.title + '"'); }
-  onDateClick(arg: DateClickArg)     { this.addLog('dateClick',   arg.date.toLocaleString()); }
-  onDatesSet(arg: DatesSetArg)       { this.addLog('datesSet',    arg.view + ' | ' + arg.title); }
+  onEventClick(arg: EventClickArg)       { this.addLog('eventClick',     '"' + arg.event.title + '"'); }
+  onEventChange(arg: EventChangeArg)     { this.addLog('eventChange',    'Moved/resized "' + arg.event.title + '"'); }
+  onDateClick(arg: DateClickArg)         { this.addLog('dateClick',      arg.date.toLocaleString()); }
+  onDatesSet(arg: DatesSetArg)           { this.addLog('datesSet',       arg.view + ' | ' + arg.title); }
+  onResourceClick(arg: ResourceClickArg) { this.addLog('resourceClick',  '"' + arg.resource.title + '" (id: ' + arg.resource.id + ')'); }
 
   private addLog(type: string, message: string) {
     this.log.push({ time: new Date().toLocaleTimeString(), type, message });

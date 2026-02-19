@@ -41,15 +41,10 @@ jobs:
       - name: Build demo (production, base-href=/ds-timeline/)
         run: npm run build -- --configuration production --base-href /ds-timeline/
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/demo/browser
+          path: dist/demo
 
   deploy:
     name: Deploy to GitHub Pages

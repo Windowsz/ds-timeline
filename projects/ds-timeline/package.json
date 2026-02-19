@@ -1,5 +1,5 @@
 {
-  "name": "ngx-timeline-calendar",
+  "name": "ds-timeline",
   "version": "2.1.0",
   "description": "FullCalendar Timeline View clone for Angular 6 through 20+. NgModule-based, zero external dependencies.",
   "license": "MIT",

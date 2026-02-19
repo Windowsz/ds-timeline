@@ -8,9 +8,9 @@ import {
   CalendarEvent, CalendarResource, CalendarView,
   FlatResource, HeaderTier, SlotDuration,
   DragState, ResizeState,
-  EventClickArg, EventChangeArg, DateClickArg, SelectArg, DatesSetArg
-} from './ngx-timeline-calendar.types';
-import { NgxTimelineCalendarService } from './ngx-timeline-calendar.service';
+  EventClickArg, EventChangeArg, DateClickArg, SelectArg, DatesSetArg, ResourceClickArg
+} from './ds-timeline.types';
+import { DsTimelineService } from './ds-timeline.service';
 
 export interface SelectionState {
   resourceId: string;
@@ -28,7 +28,7 @@ export interface HoverTooltip {
 }
 
 @Component({
-  selector: 'ngx-timeline-calendar',
+  selector: 'ds-timeline',
   standalone: false,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -63,7 +63,7 @@ export interface HoverTooltip {
       <div class="ntc-body">
 
         <!-- Resource column -->
-        <div class="ntc-res-col" [style.width.px]="resourceAreaWidth">
+        <div class="ntc-res-col" [style.width.px]="resourceAreaWidth" (wheel)="onResColWheel($event)">
           <div class="ntc-res-header" [style.height.px]="headerHeight">
             <span class="ntc-res-header-text">{{ resourceAreaHeaderContent }}</span>
           </div>
@@ -72,9 +72,10 @@ export interface HoverTooltip {
               class="ntc-res-row"
               [ngClass]="{ 'ntc-res-group': res.isGroup }"
               [style.height.px]="rowHeight"
-              [style.paddingLeft.px]="res.level * 18 + 10">
+              [style.paddingLeft.px]="res.level * 18 + 10"
+              (click)="onResourceClick($event, res)">
               <button *ngIf="res.isGroup" class="ntc-expand-btn" type="button"
-                (click)="toggleResource(res)">{{ res.expanded ? '&#9660;' : '&#9658;' }}</button>
+                (click)="$event.stopPropagation(); toggleResource(res)">{{ res.expanded ? '&#9660;' : '&#9658;' }}</button>
               <div class="ntc-res-info">
                 <span class="ntc-res-name">{{ res.title }}</span>
                 <span class="ntc-res-sub" *ngIf="res.extendedProps && res.extendedProps['subtitle']">
@@ -294,7 +295,7 @@ export interface HoverTooltip {
     .ntc-res-header { display: flex; align-items: center; border-bottom: 1px solid var(--ntc-border); flex-shrink: 0; }
     .ntc-res-header-text { padding: 0 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ntc-muted); }
     .ntc-res-rows { overflow-y: hidden; flex: 1; }
-    .ntc-res-row { display: flex; align-items: center; gap: 5px; border-bottom: 1px solid var(--ntc-border-lt); background: var(--ntc-row-bg); box-sizing: border-box; overflow: hidden; transition: background 0.1s; }
+    .ntc-res-row { display: flex; align-items: center; gap: 5px; border-bottom: 1px solid var(--ntc-border-lt); background: var(--ntc-row-bg); box-sizing: border-box; overflow: hidden; transition: background 0.1s; cursor: pointer; }
     .ntc-res-row:hover { background: var(--ntc-surface); }
     .ntc-res-group { background: var(--ntc-grp-bg) !important; }
     .ntc-expand-btn { background: none; border: none; cursor: pointer; color: var(--ntc-muted); font-size: 10px; padding: 2px 3px; flex-shrink: 0; line-height: 1; }
@@ -426,7 +427,7 @@ export interface HoverTooltip {
     .ntc-evt-tooltip-badge { font-size: 10px; background: rgba(255,71,87,0.18); color: #ff6b78; padding: 2px 8px; border-radius: 8px; font-weight: 700; }
   `]
 })
-export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestroy, DoCheck {
+export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoCheck {
 
   @ViewChild('timelineEl') timelineEl!: ElementRef<HTMLDivElement>;
   @ViewChild('resRows')    resRowsEl!:  ElementRef<HTMLDivElement>;
@@ -471,13 +472,14 @@ export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestro
   @Input() allowResourceDrag = true;
 
   // ===== OUTPUTS =====
-  @Output() eventClick  = new EventEmitter<EventClickArg>();
-  @Output() eventChange = new EventEmitter<EventChangeArg>();
-  @Output() dateClick   = new EventEmitter<DateClickArg>();
-  @Output() select      = new EventEmitter<SelectArg>();
-  @Output() selecting   = new EventEmitter<SelectArg>();
-  @Output() viewChange  = new EventEmitter<{ view: CalendarView; start: Date; end: Date }>();
-  @Output() datesSet    = new EventEmitter<DatesSetArg>();
+  @Output() eventClick    = new EventEmitter<EventClickArg>();
+  @Output() eventChange   = new EventEmitter<EventChangeArg>();
+  @Output() dateClick     = new EventEmitter<DateClickArg>();
+  @Output() select        = new EventEmitter<SelectArg>();
+  @Output() selecting     = new EventEmitter<SelectArg>();
+  @Output() viewChange    = new EventEmitter<{ view: CalendarView; start: Date; end: Date }>();
+  @Output() datesSet      = new EventEmitter<DatesSetArg>();
+  @Output() resourceClick = new EventEmitter<ResourceClickArg>();
 
   // ===== STATE =====
   currentView: CalendarView = 'resourceTimelineWeek';
@@ -513,7 +515,7 @@ export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestro
   private nowTimer: any;
   private prevEventsLength = 0;
 
-  constructor(public svc: NgxTimelineCalendarService, private cdr: ChangeDetectorRef) {}
+  constructor(public svc: DsTimelineService, private cdr: ChangeDetectorRef) {}
 
   // ===== LIFECYCLE =====
   ngOnInit() {
@@ -759,6 +761,16 @@ export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestro
     if (this.resRowsEl) this.resRowsEl.nativeElement.scrollTop = el.scrollTop;
   }
 
+  onResColWheel(e: WheelEvent) {
+    e.preventDefault();
+    if (this.timelineEl) this.timelineEl.nativeElement.scrollTop += e.deltaY;
+  }
+
+  // ===== RESOURCE CLICK =====
+  onResourceClick(e: MouseEvent, res: FlatResource) {
+    this.resourceClick.emit({ resource: res.original, jsEvent: e });
+  }
+
   // ===== EVENT CLICK =====
   onEventClick(e: MouseEvent, evt: CalendarEvent) {
     if (this.isBlocked(evt, evt.resourceId || '')) return;
@@ -919,6 +931,9 @@ export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestro
         if (en.getTime() - s.getTime() >= this.selectMinDuration) {
           this.select.emit({ start: s, end: en, resource });
         }
+      } else if (!moved && state) {
+        // Simple click on a grid cell (no drag) → dateClick
+        this.dateClick.emit({ date: state.startDate, resource, jsEvent: e });
       }
       this.cdr.markForCheck(); return;
     }

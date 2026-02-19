@@ -108,3 +108,8 @@ export interface DatesSetArg {
   end: Date;
   title: string;
 }
+
+export interface ResourceClickArg {
+  resource: CalendarResource;
+  jsEvent: MouseEvent;
+}

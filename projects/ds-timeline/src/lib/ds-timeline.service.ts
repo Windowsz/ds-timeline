@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
-import { CalendarView, SlotDuration, TimelineResult, HeaderTier } from './ngx-timeline-calendar.types';
+import { CalendarView, SlotDuration, TimelineResult, HeaderTier } from './ds-timeline.types';
 
 @Injectable({ providedIn: 'root' })
-export class NgxTimelineCalendarService {
+export class DsTimelineService {
 
   buildTimeline(view: CalendarView, date: Date, slotDuration: SlotDuration, slotMinWidth: number): TimelineResult {
     switch (view) {

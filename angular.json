@@ -45,17 +45,17 @@
         }
       }
     },
-    "ngx-timeline-calendar": {
-      "root": "projects/ngx-timeline-calendar",
-      "sourceRoot": "projects/ngx-timeline-calendar/src",
+    "ds-timeline": {
+      "root": "projects/ds-timeline",
+      "sourceRoot": "projects/ds-timeline/src",
       "projectType": "library",
       "prefix": "ngx",
       "architect": {
         "build": {
           "builder": "@angular-devkit/build-angular:ng-packagr",
           "options": {
-            "project": "projects/ngx-timeline-calendar/ng-package.json",
-            "tsConfig": "projects/ngx-timeline-calendar/tsconfig.lib.json"
+            "project": "projects/ds-timeline/ng-package.json",
+            "tsConfig": "projects/ds-timeline/tsconfig.lib.json"
           }
         }
       }
