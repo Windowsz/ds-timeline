@@ -169,12 +169,12 @@ export interface HoverTooltip {
                       {{ formatEventTime(evt) }}
                     </span>
                   </div>
-                  <div *ngIf="editable && evt.editable !== false && evt.durationEditable !== false"
+                  <div *ngIf="editable && evt.editable !== false && evt.durationEditable !== false && !isBlocked(evt, res.id)"
                     class="ntc-resize ntc-resize-end"
                     (mousedown)="onResizeStart($event, evt, 'end')">
                     <span class="ntc-resize-grip"></span>
                   </div>
-                  <div *ngIf="editable && evt.editable !== false && evt.startEditable !== false"
+                  <div *ngIf="editable && evt.editable !== false && evt.startEditable !== false && !isBlocked(evt, res.id)"
                     class="ntc-resize ntc-resize-start"
                     (mousedown)="onResizeStart($event, evt, 'start')">
                     <span class="ntc-resize-grip"></span>
@@ -788,6 +788,9 @@ export class NgxTimelineCalendarComponent implements OnInit, OnChanges, OnDestro
   // ===== RESIZE =====
   onResizeStart(e: MouseEvent, evt: CalendarEvent, handle: 'start' | 'end') {
     if (!this.editable || evt.editable === false) return;
+    if (this.isBlocked(evt, evt.resourceId || '')) return;
+    if (handle === 'end'   && evt.durationEditable === false) return;
+    if (handle === 'start' && evt.startEditable    === false) return;
     e.preventDefault(); e.stopPropagation();
     this.hoverTooltip = null;
     this.resizeState = { eventId: evt.id, handle, originalEvent: this.clone(evt), startX: e.clientX };
