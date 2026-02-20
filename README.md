@@ -170,21 +170,17 @@ export class AppComponent {
 interface CalendarEvent {
   id: string;                              // Unique identifier
   title: string;                           // Display label on the event bar
-  start: Date | string;                   // Start date/time
-  end?: Date | string;                    // End date/time (defaults to start + 1 hour)
-  resourceId?: string;                    // Assign to a single resource row
-  resourceIds?: string[];                 // Assign to multiple resource rows
-  color?: string;                         // Background and border color (hex)
+  start: Date | string;                    // Start date/time
+  end?: Date | string;                     // End date/time (defaults to start + 1 hour)
+  resourceId?: string;                     // Assign to a single resource row
+  resourceIds?: string[];                  // Assign to multiple resource rows
+  color?: string;                          // Background and border color (hex)
   backgroundColor?: string;               // Override background color only
   borderColor?: string;                   // Override border color only
-  textColor?: string;                     // Override text color only
+  textColor?: string;                     // Override text color (auto-contrast if omitted)
   editable?: boolean;                     // false → cannot be dragged or resized
   startEditable?: boolean;                // false → start-edge resize handle hidden
   durationEditable?: boolean;             // false → end-edge resize handle hidden
-  allDay?: boolean;                       // Mark as an all-day event
-  overlap?: boolean;                      // Single-mode overlap hint
-  groupId?: string;                       // Logical group identifier
-  classNames?: string[];                  // Extra CSS classes on the event element
   extendedProps?: { [key: string]: any }; // Custom metadata (e.g. description, priority)
 }
 ```
@@ -209,9 +205,8 @@ interface CalendarEvent {
 interface CalendarResource {
   id: string;                              // Unique identifier
   title: string;                           // Display name in the resource column
-  children?: CalendarResource[];          // Nested child resources (creates a collapsible group)
-  eventColor?: string;                    // Default event color for events on this resource
-  extendedProps?: { [key: string]: any }; // Custom metadata (e.g. subtitle, capacity)
+  children?: CalendarResource[];           // Nested child resources (creates a collapsible group)
+  extendedProps?: { [key: string]: any };  // Custom metadata (e.g. subtitle, capacity)
 }
 ```
 
@@ -513,11 +508,11 @@ const event: CalendarEvent = {
   // or individually:
   backgroundColor: '#ff4757',
   borderColor: '#c0392b',
-  textColor: '#ffffff'
+  textColor: '#ffffff'        // omit to let the component auto-pick white or dark text
 };
 ```
 
-Text color contrast is computed automatically when `textColor` is not specified — the component picks white or dark text based on the background luminance.
+When `textColor` is omitted the component automatically picks white or dark text based on the background luminance (`color` or `backgroundColor`). Set `textColor` explicitly to override this.
 
 ---
 
