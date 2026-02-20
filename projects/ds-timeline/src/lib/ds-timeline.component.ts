@@ -63,7 +63,7 @@ export interface HoverTooltip {
       <div class="ntc-body">
 
         <!-- Resource column -->
-        <div class="ntc-res-col" [style.width.px]="resourceAreaWidth" (wheel)="onResColWheel($event)">
+        <div class="ntc-res-col" [style.width.px]="resourceAreaWidth" (wheel)="onResColWheel($event)" (touchstart)="onResColTouchStart($event)" (touchmove)="onResColTouchMove($event)">
           <div class="ntc-res-header" [style.height.px]="headerHeight">
             <span class="ntc-res-header-text">{{ resourceAreaHeaderContent }}</span>
           </div>
@@ -119,7 +119,8 @@ export interface HoverTooltip {
               }"
               [style.height.px]="rowHeight"
               [style.cursor]="selectable && !res.isGroup ? 'crosshair' : 'default'"
-              (mousedown)="onGridMouseDown($event, res)">
+              (mousedown)="onGridMouseDown($event, res)"
+              (touchstart)="onGridTouchStart($event, res)">
 
               <!-- Slot background columns -->
               <div class="ntc-bg-cols">
@@ -160,6 +161,7 @@ export interface HoverTooltip {
                   [style.borderColor]="evt.borderColor || evt.color || defaultEventColor"
                   [style.color]="svc.getContrastColor(evt.color || evt.backgroundColor || defaultEventColor)"
                   (mousedown)="onEventMouseDown($event, evt)"
+                  (touchstart)="onEventTouchStart($event, evt)"
                   (click)="onEventClick($event, evt)"
                   (mouseenter)="onEventMouseEnter($event, evt)"
                   (mouseleave)="onEventMouseLeave()"
@@ -172,12 +174,14 @@ export interface HoverTooltip {
                   </div>
                   <div *ngIf="editable && evt.editable !== false && evt.durationEditable !== false && !isBlocked(evt, res.id)"
                     class="ntc-resize ntc-resize-end"
-                    (mousedown)="onResizeStart($event, evt, 'end')">
+                    (mousedown)="onResizeStart($event, evt, 'end')"
+                    (touchstart)="onResizeTouchStart($event, evt, 'end')">
                     <span class="ntc-resize-grip"></span>
                   </div>
                   <div *ngIf="editable && evt.editable !== false && evt.startEditable !== false && !isBlocked(evt, res.id)"
                     class="ntc-resize ntc-resize-start"
-                    (mousedown)="onResizeStart($event, evt, 'start')">
+                    (mousedown)="onResizeStart($event, evt, 'start')"
+                    (touchstart)="onResizeTouchStart($event, evt, 'start')">
                     <span class="ntc-resize-grip"></span>
                   </div>
                 </div>
@@ -334,6 +338,7 @@ export interface HoverTooltip {
       pointer-events: all; cursor: pointer; overflow: visible;
       user-select: none; box-sizing: border-box; min-width: 4px;
       transition: box-shadow 0.15s, opacity 0.15s;
+      touch-action: none;
     }
     .ntc-evt:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.32); z-index: 2; }
     .ntc-evt.ntc-evt-selected { box-shadow: 0 0 0 2px rgba(255,255,255,0.9), 0 0 0 4px var(--ntc-primary); z-index: 3; }
@@ -354,11 +359,12 @@ export interface HoverTooltip {
     .ntc-evt-title { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
     .ntc-evt-time  { font-size: 10px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     /* RESIZE */
-    .ntc-resize { position: absolute; top: 0; bottom: 0; width: 10px; cursor: col-resize; z-index: 5; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+    .ntc-resize { position: absolute; top: 0; bottom: 0; width: 16px; cursor: col-resize; z-index: 5; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; touch-action: none; }
     .ntc-evt:hover .ntc-resize { opacity: 1; }
+    @media (pointer: coarse) { .ntc-resize { opacity: 1; width: 20px; } }
     .ntc-resize-end   { right: 0; }
     .ntc-resize-start { left: 0; }
-    .ntc-resize-grip  { display: block; width: 2px; height: 55%; border-radius: 1px; background: rgba(255,255,255,0.75); }
+    .ntc-resize-grip  { display: block; width: 3px; height: 55%; border-radius: 2px; background: rgba(255,255,255,0.8); }
     /* NOW */
     .ntc-now-line { position: absolute; top: -1px; bottom: -1px; width: 2px; background: var(--ntc-now); z-index: 4; pointer-events: none; }
     /* SELECTION BOX */
@@ -512,6 +518,9 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
 
   private mouseMoveListener!: (e: MouseEvent) => void;
   private mouseUpListener!:   (e: MouseEvent) => void;
+  private touchMoveListener!: (e: TouchEvent) => void;
+  private touchEndListener!:  (e: TouchEvent) => void;
+  private resColTouchStartY = 0;
   private nowTimer: any;
   private prevEventsLength = 0;
 
@@ -529,8 +538,12 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
     }
     this.mouseMoveListener = (e: MouseEvent) => this.onGlobalMouseMove(e);
     this.mouseUpListener   = (e: MouseEvent) => this.onGlobalMouseUp(e);
+    this.touchMoveListener = (e: TouchEvent) => this.onGlobalTouchMove(e);
+    this.touchEndListener  = (e: TouchEvent) => this.onGlobalTouchEnd(e);
     document.addEventListener('mousemove', this.mouseMoveListener);
     document.addEventListener('mouseup',   this.mouseUpListener);
+    document.addEventListener('touchmove', this.touchMoveListener, { passive: false });
+    document.addEventListener('touchend',  this.touchEndListener);
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -551,6 +564,8 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
     clearTimeout(this.hoverTimer);
     document.removeEventListener('mousemove', this.mouseMoveListener);
     document.removeEventListener('mouseup',   this.mouseUpListener);
+    document.removeEventListener('touchmove', this.touchMoveListener);
+    document.removeEventListener('touchend',  this.touchEndListener);
   }
 
   // ===== NAVIGATION =====
@@ -809,26 +824,91 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
     this.cdr.markForCheck();
   }
 
+  // ===== TOUCH HANDLERS =====
+  onEventTouchStart(e: TouchEvent, evt: CalendarEvent) {
+    if (!this.editable || evt.editable === false || evt.startEditable === false) return;
+    if (this.isBlocked(evt, evt.resourceId || '')) return;
+    const t = e.touches[0]; if (!t) return;
+    e.preventDefault(); e.stopPropagation();
+    this.hoverTooltip = null;
+    this.dragState = {
+      eventId: evt.id,
+      originalEvent: this.clone(evt),
+      startX: t.clientX,
+      startY: t.clientY,
+      sourceResourceId: evt.resourceId || ''
+    };
+    this.dragTargetResourceId = evt.resourceId || null;
+    this.cdr.markForCheck();
+  }
+
+  onResizeTouchStart(e: TouchEvent, evt: CalendarEvent, handle: 'start' | 'end') {
+    if (!this.editable || evt.editable === false) return;
+    if (this.isBlocked(evt, evt.resourceId || '')) return;
+    if (handle === 'end'   && evt.durationEditable === false) return;
+    if (handle === 'start' && evt.startEditable    === false) return;
+    const t = e.touches[0]; if (!t) return;
+    e.preventDefault(); e.stopPropagation();
+    this.hoverTooltip = null;
+    this.resizeState = { eventId: evt.id, handle, originalEvent: this.clone(evt), startX: t.clientX };
+    this.cdr.markForCheck();
+  }
+
+  onGridTouchStart(e: TouchEvent, res: FlatResource) {
+    if ((e.target as HTMLElement).closest('.ntc-evt'))    return;
+    if ((e.target as HTMLElement).closest('.ntc-resize')) return;
+    if (!this.selectable || res.isGroup) return;
+    const t = e.touches[0]; if (!t) return;
+    const x = this.gridXFromClient(t.clientX);
+    const date = this.dateFromX(x);
+    this.isSelecting = true;
+    this.selMoved    = false;
+    this.selResource = res;
+    this.selState    = { resourceId: res.id, startX: x, currentX: x, startDate: date, endDate: date };
+    this.tooltipVisible = false;
+    this.cdr.markForCheck();
+  }
+
+  onResColTouchStart(e: TouchEvent) {
+    this.resColTouchStartY = e.touches[0]?.clientY || 0;
+  }
+
+  onResColTouchMove(e: TouchEvent) {
+    e.preventDefault();
+    const t = e.touches[0]; if (!t) return;
+    const dy = this.resColTouchStartY - t.clientY;
+    this.resColTouchStartY = t.clientY;
+    if (this.timelineEl) this.timelineEl.nativeElement.scrollTop += dy;
+  }
+
   // ===== GLOBAL MOUSE MOVE =====
-  private onGlobalMouseMove(e: MouseEvent) {
+  private onGlobalMouseMove(e: MouseEvent) { this.handlePointerMove(e.clientX, e.clientY); }
+
+  private onGlobalTouchMove(e: TouchEvent) {
+    const t = e.touches[0]; if (!t) return;
+    if (this.dragState || this.resizeState || (this.isSelecting && this.selMoved)) {
+      e.preventDefault();
+    }
+    this.handlePointerMove(t.clientX, t.clientY);
+  }
+
+  private handlePointerMove(clientX: number, clientY: number) {
     const viewStart = this.getViewStart();
     const viewEnd   = this.getViewEnd();
     const totalMs   = viewEnd.getTime() - viewStart.getTime();
 
     // --- drag-to-select ---
     if (this.isSelecting && this.selState) {
-      // Clamp X to grid width so selection never goes past end of view
-      const x = Math.max(0, Math.min(this.totalWidth, this.gridX(e)));
+      const x = Math.max(0, Math.min(this.totalWidth, this.gridXFromClient(clientX)));
       const date = this.dateFromX(x);
       const moved = Math.abs(x - this.selState.startX) > 3;
       if (moved) {
         this.selMoved = true;
-        this.autoScrollOnDrag(e);   // auto-scroll when near edges
+        this.autoScrollOnDrag(clientX);
         this.selState = Object.assign({}, this.selState, { currentX: x, endDate: date });
         const el = this.timelineEl?.nativeElement;
         if (el) {
           const midX = (Math.min(this.selState.startX, x) + Math.max(this.selState.startX, x)) / 2;
-          const rect = el.getBoundingClientRect();
           this.tooltipX = midX - el.scrollLeft + (this.resourceAreaWidth);
           this.tooltipY = this.headerHeight + 6;
           this.tooltipVisible = true;
@@ -845,13 +925,12 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
 
     // --- event drag (clamped to view boundaries) ---
     if (this.dragState) {
-      const dx  = e.clientX - this.dragState.startX;
+      const dx  = clientX - this.dragState.startX;
       const deltaMs = dx * msPerPx;
       const idx = this.findIdx(this.dragState.eventId);
 
-      // Detect which resource row the cursor is over (for cross-row drag)
       if (this.allowResourceDrag) {
-        const targetRes = this.resourceAtY(e);
+        const targetRes = this.resourceAtClientY(clientY);
         this.dragTargetResourceId = targetRes ? targetRes.id : this.dragState.sourceResourceId;
       }
 
@@ -860,7 +939,6 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
         const os  = new Date(orig.start).getTime();
         const dur = (orig.end ? new Date(orig.end).getTime() : os + 3600000) - os;
 
-        // Clamp to view boundaries
         let newStartMs = os + deltaMs;
         newStartMs = Math.max(viewStart.getTime(), newStartMs);
         newStartMs = Math.min(viewEnd.getTime() - dur, newStartMs);
@@ -869,7 +947,6 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
           ? (this.dragTargetResourceId || this.dragState.sourceResourceId)
           : this.dragState.sourceResourceId;
 
-        // --- Single-mode overlap guard ---
         if (this.eventOverlap === 'single') {
           const newStart = new Date(newStartMs);
           const newEnd   = new Date(newStartMs + dur);
@@ -879,10 +956,7 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
             const se = sib.end ? new Date(sib.end).getTime() : ss + 3600000;
             return ss < newEnd.getTime() && se > newStart.getTime();
           });
-          if (wouldOverlap) {
-            this.cdr.markForCheck();
-            return; // refuse the move — keep current position
-          }
+          if (wouldOverlap) { this.cdr.markForCheck(); return; }
         }
 
         const ns = new Date(newStartMs);
@@ -898,7 +972,7 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
 
     // --- resize (clamped to view boundaries) ---
     if (this.resizeState) {
-      const dx = e.clientX - this.resizeState.startX;
+      const dx = clientX - this.resizeState.startX;
       const deltaMs = dx * msPerPx;
       const idx = this.findIdx(this.resizeState.eventId);
       if (idx > -1) {
@@ -907,11 +981,9 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
         const oe = orig.end ? new Date(orig.end).getTime() : os + 3600000;
         this.events = this.events.slice();
         if (this.resizeState.handle === 'end') {
-          // end cannot exceed viewEnd
           const ne = Math.min(viewEnd.getTime(), oe + deltaMs);
           if (ne - os >= 900000) this.events[idx] = Object.assign({}, this.events[idx], { end: new Date(ne) });
         } else {
-          // start cannot go before viewStart
           const ns = Math.max(viewStart.getTime(), os + deltaMs);
           if (oe - ns >= 900000) this.events[idx] = Object.assign({}, this.events[idx], { start: new Date(ns) });
         }
@@ -921,7 +993,14 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
   }
 
   // ===== GLOBAL MOUSE UP =====
-  private onGlobalMouseUp(e: MouseEvent) {
+  private onGlobalMouseUp(e: MouseEvent) { this.handlePointerUp(e.clientX, e.clientY, e); }
+
+  private onGlobalTouchEnd(e: TouchEvent) {
+    const t = e.changedTouches[0];
+    this.handlePointerUp(t?.clientX || 0, t?.clientY || 0, null);
+  }
+
+  private handlePointerUp(clientX: number, clientY: number, jsEvent: MouseEvent | null) {
     if (this.isSelecting) {
       const moved = this.selMoved, state = this.selState, resource = this.selResource?.original;
       this.isSelecting = false; this.selMoved = false;
@@ -931,9 +1010,8 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
         if (en.getTime() - s.getTime() >= this.selectMinDuration) {
           this.select.emit({ start: s, end: en, resource });
         }
-      } else if (!moved && state) {
-        // Simple click on a grid cell (no drag) → dateClick
-        this.dateClick.emit({ date: state.startDate, resource, jsEvent: e });
+      } else if (!moved && state && jsEvent) {
+        this.dateClick.emit({ date: state.startDate, resource, jsEvent });
       }
       this.cdr.markForCheck(); return;
     }
@@ -963,12 +1041,14 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
   }
 
   // ===== COORDINATE UTILS =====
-  private gridX(e: MouseEvent): number {
+  private gridXFromClient(clientX: number): number {
     const el = this.timelineEl?.nativeElement;
     if (!el) return 0;
     const rect = el.getBoundingClientRect();
-    return Math.max(0, Math.min(this.totalWidth, e.clientX - rect.left + el.scrollLeft));
+    return Math.max(0, Math.min(this.totalWidth, clientX - rect.left + el.scrollLeft));
   }
+
+  private gridX(e: MouseEvent): number { return this.gridXFromClient(e.clientX); }
 
   private dateFromX(x: number): Date {
     const s  = this.getViewStart();
@@ -989,30 +1069,30 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
     return new Date(s.getTime() + Math.min(snapped, totalMs));
   }
 
-  // Map a mouse Y position to whichever FlatResource row the cursor is over
-  private resourceAtY(e: MouseEvent): FlatResource | null {
+  // Map a clientY position to whichever FlatResource row the cursor is over
+  private resourceAtClientY(clientY: number): FlatResource | null {
     const el = this.timelineEl?.nativeElement;
     if (!el) return null;
     const rect = el.getBoundingClientRect();
-    // Y relative to grid (below sticky header)
-    const yInGrid = e.clientY - rect.top - this.headerHeight + el.scrollTop;
+    const yInGrid = clientY - rect.top - this.headerHeight + el.scrollTop;
     if (yInGrid < 0) return null;
     const rowIdx = Math.floor(yInGrid / this.rowHeight);
     const res = this.flatResources[rowIdx];
-    // Don't allow dropping onto group rows
     if (!res || res.isGroup) return null;
     return res;
   }
 
+  private resourceAtY(e: MouseEvent): FlatResource | null { return this.resourceAtClientY(e.clientY); }
+
   // Auto-scroll timeline when dragging near edges
-  private autoScrollOnDrag(e: MouseEvent): void {
+  private autoScrollOnDrag(clientX: number): void {
     const el = this.timelineEl?.nativeElement;
     if (!el) return;
     const rect  = el.getBoundingClientRect();
     const zone  = 60;
     const speed = 12;
-    const dRight = rect.right - e.clientX;
-    const dLeft  = e.clientX  - rect.left;
+    const dRight = rect.right - clientX;
+    const dLeft  = clientX   - rect.left;
     if (dRight < zone && dRight > 0) el.scrollLeft += speed * (1 - dRight / zone);
     else if (dLeft < zone && dLeft > 0) el.scrollLeft -= speed * (1 - dLeft / zone);
   }

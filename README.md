@@ -2,6 +2,8 @@
 
 An Angular resource-timeline calendar component inspired by FullCalendar's Timeline view. Supports drag-and-drop, resize, drag-to-select, nested resources, overlap modes, theming, and more — compatible with **Angular 6 through 20+**.
 
+**[Live Demo →](https://windowsz.github.io/ds-timeline/)**
+
 ---
 
 ## Table of Contents
@@ -521,7 +523,9 @@ Text color contrast is computed automatically when `textColor` is not specified 
 
 ## Demo App
 
-A full demo application is included in `src/app/`. Run it with:
+A live demo is hosted at **[https://windowsz.github.io/ds-timeline/](https://windowsz.github.io/ds-timeline/)**.
+
+A full demo application is also included in `src/app/`. Run it locally with:
 
 ```bash
 npm start
