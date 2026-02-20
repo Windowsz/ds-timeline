@@ -20,22 +20,17 @@ export interface CalendarEvent {
   color?: string;
   backgroundColor?: string;
   borderColor?: string;
-  textColor?: string;
+  textColor?: string;          // overrides auto-contrast text color
   editable?: boolean;
-  allDay?: boolean;
-  extendedProps?: { [key: string]: any };
-  classNames?: string[];
-  groupId?: string;
-  durationEditable?: boolean;
   startEditable?: boolean;
-  overlap?: boolean;
+  durationEditable?: boolean;
+  extendedProps?: { [key: string]: any };
 }
 
 export interface CalendarResource {
   id: string;
   title: string;
   children?: CalendarResource[];
-  eventColor?: string;
   extendedProps?: { [key: string]: any };
 }
 

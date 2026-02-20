@@ -159,7 +159,7 @@ export interface HoverTooltip {
                   [style.height.px]="eventHeight"
                   [style.backgroundColor]="evt.color || evt.backgroundColor || defaultEventColor"
                   [style.borderColor]="evt.borderColor || evt.color || defaultEventColor"
-                  [style.color]="svc.getContrastColor(evt.color || evt.backgroundColor || defaultEventColor)"
+                  [style.color]="evt.textColor || svc.getContrastColor(evt.color || evt.backgroundColor || defaultEventColor)"
                   (mousedown)="onEventMouseDown($event, evt)"
                   (touchstart)="onEventTouchStart($event, evt)"
                   (click)="onEventClick($event, evt)"
