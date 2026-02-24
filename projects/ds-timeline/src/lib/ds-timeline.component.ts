@@ -350,9 +350,9 @@ export interface HoverTooltip {
       ) !important;
       cursor: not-allowed;
     }
-    .ntc-evt-inner { height: 100%; padding: 2px 18px 2px 7px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
-    .ntc-evt-title { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
-    .ntc-evt-time  { font-size: 10px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ntc-evt-inner { height: 100%; padding: 1px 18px 1px 7px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+    .ntc-evt-title { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
+    .ntc-evt-time  { font-size: 10px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
     /* RESIZE */
     .ntc-resize { position: absolute; top: 0; bottom: 0; width: 16px; cursor: col-resize; z-index: 5; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; touch-action: none; }
     .ntc-evt:hover .ntc-resize { opacity: 1; }
