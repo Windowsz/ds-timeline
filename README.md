@@ -124,6 +124,7 @@ export class AppComponent {
 | `resources` | `CalendarResource[]` | `[]` | Array of resources (rows). Supports nested children for grouping. |
 | `initialView` | `CalendarView` | `'resourceTimelineWeek'` | The view to display on first render. |
 | `initialDate` | `Date \| null` | `null` | The date the calendar starts on. Defaults to today. |
+| `views` | `CalendarView[]` | all three | Views listed in the toolbar switcher. Pass a single-element array to lock the calendar to one view (the switcher is hidden automatically). |
 | `theme` | `'light' \| 'dark'` | `'light'` | Color theme. |
 | `slotMinWidth` | `number` | `60` | Minimum width in pixels of each time slot column. |
 | `slotDuration` | `SlotDuration` | `'01:00:00'` | Duration of each time slot. Affects Day view granularity. |
@@ -134,7 +135,7 @@ export class AppComponent {
 | `rowHeight` | `number` | `40` | Height in pixels of each resource row. |
 | `eventHeight` | `number` | `28` | Height in pixels of rendered event bars. |
 | `showToolbar` | `boolean` | `true` | Show or hide the top toolbar (navigation + view switcher). |
-| `showViewSwitcher` | `boolean` | `true` | Show or hide the Day / Week / Month buttons inside the toolbar. |
+| `showViewSwitcher` | `boolean` | `true` | Show or hide the view switcher buttons. Also hidden automatically when `views` has only one entry. |
 | `showNowIndicator` | `boolean` | `true` | Show the red vertical line indicating the current time. |
 | `selectable` | `boolean` | `true` | Enable drag-to-select on empty grid cells. |
 | `selectMinDuration` | `number` | `900000` | Minimum selection duration in milliseconds before a `select` event fires. Default is 15 minutes (900 000 ms). |
@@ -144,6 +145,18 @@ export class AppComponent {
 | `tooltipDelay` | `number` | `300` | Delay in milliseconds before the hover tooltip appears. |
 | `eventOverlap` | `'multiple' \| 'single'` | `'multiple'` | Overlap mode. See [Overlap Modes](#overlap-modes). |
 | `allowResourceDrag` | `boolean` | `true` | When `true`, dragging an event vertically moves it to a different resource row. When `false`, drag is horizontal-only. |
+
+**Locking to a single view:**
+
+```html
+<!-- Show only the Week view — switcher is hidden automatically -->
+<ds-timeline [views]="['resourceTimelineWeek']">
+
+<!-- Show only Day and Week — Month is removed from the switcher -->
+<ds-timeline [views]="['resourceTimelineDay', 'resourceTimelineWeek']">
+```
+
+> **Column fitting:** Week and Month view columns automatically expand to fill the available container width. Day view scrolls horizontally as usual.
 
 ---
 

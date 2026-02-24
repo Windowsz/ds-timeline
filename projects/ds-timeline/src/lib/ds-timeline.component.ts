@@ -1,6 +1,6 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnInit, OnChanges, SimpleChanges,
+  OnInit, AfterViewInit, OnChanges, SimpleChanges,
   ChangeDetectionStrategy, ChangeDetectorRef,
   ElementRef, ViewChild, OnDestroy, DoCheck
 } from '@angular/core';
@@ -44,17 +44,12 @@ export interface HoverTooltip {
           </div>
           <span class="ntc-title">{{ currentTitle }}</span>
         </div>
-        <div class="ntc-toolbar-right" *ngIf="showViewSwitcher">
+        <div class="ntc-toolbar-right" *ngIf="showViewSwitcher && views.length > 1">
           <div class="ntc-view-group">
-            <button class="ntc-btn ntc-btn-view" type="button"
-              [ngClass]="{ 'ntc-active': currentView === 'resourceTimelineDay' }"
-              (click)="setView('resourceTimelineDay')">Day</button>
-            <button class="ntc-btn ntc-btn-view" type="button"
-              [ngClass]="{ 'ntc-active': currentView === 'resourceTimelineWeek' }"
-              (click)="setView('resourceTimelineWeek')">Week</button>
-            <button class="ntc-btn ntc-btn-view" type="button"
-              [ngClass]="{ 'ntc-active': currentView === 'resourceTimelineMonth' }"
-              (click)="setView('resourceTimelineMonth')">Month</button>
+            <button *ngFor="let v of views"
+              class="ntc-btn ntc-btn-view" type="button"
+              [ngClass]="{ 'ntc-active': currentView === v }"
+              (click)="setView(v)">{{ viewLabel(v) }}</button>
           </div>
         </div>
       </div>
@@ -433,7 +428,7 @@ export interface HoverTooltip {
     .ntc-evt-tooltip-badge { font-size: 10px; background: rgba(255,71,87,0.18); color: #ff6b78; padding: 2px 8px; border-radius: 8px; font-weight: 700; }
   `]
 })
-export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoCheck {
+export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy, DoCheck {
 
   @ViewChild('timelineEl') timelineEl!: ElementRef<HTMLDivElement>;
   @ViewChild('resRows')    resRowsEl!:  ElementRef<HTMLDivElement>;
@@ -444,6 +439,8 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
   @Input() resources: CalendarResource[] = [];
   @Input() initialView: CalendarView = 'resourceTimelineWeek';
   @Input() initialDate: Date | null = null;
+  /** Subset of views shown in the switcher. Pass a single-element array to lock to one view. */
+  @Input() views: CalendarView[] = ['resourceTimelineDay', 'resourceTimelineWeek', 'resourceTimelineMonth'];
   @Input() theme: 'light' | 'dark' = 'light';
   @Input() slotMinWidth = 60;
   @Input() slotDuration: SlotDuration = '01:00:00';
@@ -520,6 +517,7 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
   private mouseUpListener!:   (e: MouseEvent) => void;
   private touchMoveListener!: (e: TouchEvent) => void;
   private touchEndListener!:  (e: TouchEvent) => void;
+  private resizeListener!:    () => void;
   private resColTouchStartY = 0;
   private nowTimer: any;
   private prevEventsLength = 0;
@@ -528,7 +526,9 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
 
   // ===== LIFECYCLE =====
   ngOnInit() {
-    this.currentView = this.initialView;
+    this.currentView = this.views.length > 0 && !this.views.includes(this.initialView)
+      ? this.views[0]
+      : this.initialView;
     this.currentDate = this.initialDate ? new Date(this.initialDate) : new Date();
     this.flattenResources();
     this.buildTimeline();
@@ -540,14 +540,25 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
     this.mouseUpListener   = (e: MouseEvent) => this.onGlobalMouseUp(e);
     this.touchMoveListener = (e: TouchEvent) => this.onGlobalTouchMove(e);
     this.touchEndListener  = (e: TouchEvent) => this.onGlobalTouchEnd(e);
+    this.resizeListener    = () => { this.buildTimeline(); this.cdr.markForCheck(); };
     document.addEventListener('mousemove', this.mouseMoveListener);
     document.addEventListener('mouseup',   this.mouseUpListener);
     document.addEventListener('touchmove', this.touchMoveListener, { passive: false });
     document.addEventListener('touchend',  this.touchEndListener);
+    window.addEventListener('resize', this.resizeListener);
+  }
+
+  ngAfterViewInit() {
+    // Re-build with actual container width now that the DOM is available
+    this.buildTimeline();
+    this.cdr.markForCheck();
   }
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['resources']) this.flattenResources();
+    if (changes['views'] && this.views?.length > 0 && !this.views.includes(this.currentView)) {
+      this.currentView = this.views[0];
+    }
     if (changes['initialView'] && !changes['initialView'].firstChange) this.currentView = this.initialView;
     if (changes['slotDuration'] || changes['slotMinWidth'] || changes['initialView'] || changes['resources']) this.buildTimeline();
   }
@@ -566,6 +577,14 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
     document.removeEventListener('mouseup',   this.mouseUpListener);
     document.removeEventListener('touchmove', this.touchMoveListener);
     document.removeEventListener('touchend',  this.touchEndListener);
+    window.removeEventListener('resize', this.resizeListener);
+  }
+
+  // ===== VIEW LABEL =====
+  viewLabel(v: CalendarView): string {
+    if (v === 'resourceTimelineDay')   return 'Day';
+    if (v === 'resourceTimelineMonth') return 'Month';
+    return 'Week';
   }
 
   // ===== NAVIGATION =====
@@ -585,7 +604,8 @@ export class DsTimelineComponent implements OnInit, OnChanges, OnDestroy, DoChec
   }
 
   buildTimeline() {
-    const r = this.svc.buildTimeline(this.currentView, this.currentDate, this.slotDuration, this.slotMinWidth);
+    const containerWidth = this.timelineEl?.nativeElement?.clientWidth || 0;
+    const r = this.svc.buildTimeline(this.currentView, this.currentDate, this.slotDuration, this.slotMinWidth, containerWidth);
     this.slots = r.slots; this.headerTier1 = r.tier1;
     this.slotWidth = r.slotWidth; this.totalWidth = r.totalWidth; this.currentTitle = r.title;
     this.updateNow(); this.cdr.markForCheck();

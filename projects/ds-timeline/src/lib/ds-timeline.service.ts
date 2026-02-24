@@ -4,11 +4,11 @@ import { CalendarView, SlotDuration, TimelineResult, HeaderTier } from './ds-tim
 @Injectable({ providedIn: 'root' })
 export class DsTimelineService {
 
-  buildTimeline(view: CalendarView, date: Date, slotDuration: SlotDuration, slotMinWidth: number): TimelineResult {
+  buildTimeline(view: CalendarView, date: Date, slotDuration: SlotDuration, slotMinWidth: number, containerWidth = 0): TimelineResult {
     switch (view) {
       case 'resourceTimelineDay':   return this.buildDay(date, slotDuration, slotMinWidth);
-      case 'resourceTimelineMonth': return this.buildMonth(date, slotMinWidth);
-      default:                      return this.buildWeek(date, slotMinWidth);
+      case 'resourceTimelineMonth': return this.buildMonth(date, slotMinWidth, containerWidth);
+      default:                      return this.buildWeek(date, slotMinWidth, containerWidth);
     }
   }
 
@@ -23,25 +23,31 @@ export class DsTimelineService {
     return { slots, tier1, slotWidth, totalWidth: slots.length * slotWidth, title: tier1[0].label };
   }
 
-  private buildWeek(date: Date, slotMinWidth: number): TimelineResult {
+  private buildWeek(date: Date, slotMinWidth: number, containerWidth = 0): TimelineResult {
     const ws = this.startOfWeek(date);
     const slots: Date[] = [];
-    const slotWidth = Math.max(slotMinWidth, 80);
-    for (let d = 0; d < 7; d++) slots.push(new Date(ws.getTime() + d * 86400000));
+    const count = 7;
+    const slotWidth = containerWidth > 0
+      ? Math.max(slotMinWidth, Math.floor(containerWidth / count))
+      : Math.max(slotMinWidth, 80);
+    for (let d = 0; d < count; d++) slots.push(new Date(ws.getTime() + d * 86400000));
     const we = new Date(ws.getTime() + 6 * 86400000);
-    const tier1: HeaderTier[] = [{ label: ws.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), width: 7 * slotWidth }];
-    return { slots, tier1, slotWidth, totalWidth: slots.length * slotWidth, title: this.shortDate(ws) + ' \u2013 ' + this.shortDate(we) };
+    const tier1: HeaderTier[] = [{ label: ws.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), width: count * slotWidth }];
+    return { slots, tier1, slotWidth, totalWidth: count * slotWidth, title: this.shortDate(ws) + ' \u2013 ' + this.shortDate(we) };
   }
 
-  private buildMonth(date: Date, slotMinWidth: number): TimelineResult {
+  private buildMonth(date: Date, slotMinWidth: number, containerWidth = 0): TimelineResult {
     const ms = this.startOfMonth(date);
     const me = this.endOfMonth(date);
     const slots: Date[] = [];
-    const slotWidth = Math.max(slotMinWidth, 36);
     const cur = new Date(ms);
     while (cur <= me) { slots.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
+    const count = slots.length;
+    const slotWidth = containerWidth > 0
+      ? Math.max(slotMinWidth, Math.floor(containerWidth / count))
+      : Math.max(slotMinWidth, 36);
     const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    return { slots, tier1: [{ label, width: slots.length * slotWidth }], slotWidth, totalWidth: slots.length * slotWidth, title: label };
+    return { slots, tier1: [{ label, width: count * slotWidth }], slotWidth, totalWidth: count * slotWidth, title: label };
   }
 
   getViewStart(view: CalendarView, date: Date): Date {
