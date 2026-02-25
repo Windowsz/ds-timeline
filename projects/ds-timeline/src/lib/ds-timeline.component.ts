@@ -519,6 +519,12 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   private touchEndListener!:  (e: TouchEvent) => void;
   private resizeListener!:    () => void;
   private resColTouchStartY = 0;
+  private longPressTimer: any = null;
+  private longPressStartX = 0;
+  private longPressStartY = 0;
+  private longPressType: 'event' | 'select' | null = null;
+  private longPressEvent: CalendarEvent | null = null;
+  private longPressRes: FlatResource | null = null;
   private nowTimer: any;
   private prevEventsLength = 0;
 
@@ -573,6 +579,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   ngOnDestroy() {
     clearInterval(this.nowTimer);
     clearTimeout(this.hoverTimer);
+    this.clearLongPress();
     document.removeEventListener('mousemove', this.mouseMoveListener);
     document.removeEventListener('mouseup',   this.mouseUpListener);
     document.removeEventListener('touchmove', this.touchMoveListener);
@@ -844,22 +851,39 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     this.cdr.markForCheck();
   }
 
+  // ===== LONG-PRESS HELPERS =====
+  private clearLongPress() {
+    if (this.longPressTimer) { clearTimeout(this.longPressTimer); this.longPressTimer = null; }
+    this.longPressType = null;
+    this.longPressEvent = null;
+    this.longPressRes = null;
+  }
+
   // ===== TOUCH HANDLERS =====
   onEventTouchStart(e: TouchEvent, evt: CalendarEvent) {
     if (!this.editable || evt.editable === false || evt.startEditable === false) return;
     if (this.isBlocked(evt, evt.resourceId || '')) return;
     const t = e.touches[0]; if (!t) return;
-    e.preventDefault(); e.stopPropagation();
-    this.hoverTooltip = null;
-    this.dragState = {
-      eventId: evt.id,
-      originalEvent: this.clone(evt),
-      startX: t.clientX,
-      startY: t.clientY,
-      sourceResourceId: evt.resourceId || ''
-    };
-    this.dragTargetResourceId = evt.resourceId || null;
-    this.cdr.markForCheck();
+    e.stopPropagation(); // prevent grid's onGridTouchStart from firing
+    this.clearLongPress();
+    this.longPressStartX = t.clientX;
+    this.longPressStartY = t.clientY;
+    this.longPressType   = 'event';
+    this.longPressEvent  = evt;
+    this.longPressTimer  = setTimeout(() => {
+      this.longPressTimer = null;
+      this.hoverTooltip   = null;
+      this.dragState = {
+        eventId: evt.id,
+        originalEvent: this.clone(evt),
+        startX: this.longPressStartX,
+        startY: this.longPressStartY,
+        sourceResourceId: evt.resourceId || ''
+      };
+      this.dragTargetResourceId = evt.resourceId || null;
+      if ('vibrate' in navigator) (navigator as any).vibrate(30);
+      this.cdr.markForCheck();
+    }, 300);
   }
 
   onResizeTouchStart(e: TouchEvent, evt: CalendarEvent, handle: 'start' | 'end') {
@@ -879,14 +903,23 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     if ((e.target as HTMLElement).closest('.ntc-resize')) return;
     if (!this.selectable || res.isGroup) return;
     const t = e.touches[0]; if (!t) return;
-    const x = this.gridXFromClient(t.clientX);
-    const date = this.dateFromX(x);
-    this.isSelecting = true;
-    this.selMoved    = false;
-    this.selResource = res;
-    this.selState    = { resourceId: res.id, startX: x, currentX: x, startDate: date, endDate: date };
-    this.tooltipVisible = false;
-    this.cdr.markForCheck();
+    this.clearLongPress();
+    this.longPressStartX = t.clientX;
+    this.longPressStartY = t.clientY;
+    this.longPressType   = 'select';
+    this.longPressRes    = res;
+    this.longPressTimer  = setTimeout(() => {
+      this.longPressTimer = null;
+      const x    = this.gridXFromClient(this.longPressStartX);
+      const date = this.dateFromX(x);
+      this.isSelecting    = true;
+      this.selMoved       = false;
+      this.selResource    = this.longPressRes!;
+      this.selState       = { resourceId: res.id, startX: x, currentX: x, startDate: date, endDate: date };
+      this.tooltipVisible = false;
+      if ('vibrate' in navigator) (navigator as any).vibrate(30);
+      this.cdr.markForCheck();
+    }, 300);
   }
 
   onResColTouchStart(e: TouchEvent) {
@@ -906,6 +939,13 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
 
   private onGlobalTouchMove(e: TouchEvent) {
     const t = e.touches[0]; if (!t) return;
+    // If a long-press is pending and the finger moved more than 8px, cancel it
+    // so the browser can handle the scroll gesture normally.
+    if (this.longPressTimer) {
+      const dx = Math.abs(t.clientX - this.longPressStartX);
+      const dy = Math.abs(t.clientY - this.longPressStartY);
+      if (dx > 8 || dy > 8) { this.clearLongPress(); }
+    }
     if (this.dragState || this.resizeState || (this.isSelecting && this.selMoved)) {
       e.preventDefault();
     }
@@ -1017,6 +1057,9 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
 
   private onGlobalTouchEnd(e: TouchEvent) {
     const t = e.changedTouches[0];
+    // Finger lifted before long-press fired → cancel pending timer; the
+    // browser will emit a click event naturally (e.g. to open the event).
+    if (this.longPressTimer) { this.clearLongPress(); return; }
     this.handlePointerUp(t?.clientX || 0, t?.clientY || 0, null);
   }
 
