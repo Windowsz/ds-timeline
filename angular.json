@@ -17,7 +17,11 @@
             "main": "src/main.ts",
             "tsConfig": "tsconfig.json",
             "assets": ["src/assets"],
-            "styles": ["src/styles.css"],
+            "styles": [
+              "src/styles.css",
+              "node_modules/@fullcalendar/core/index.global.css",
+              "node_modules/@fullcalendar/resource-timeline/index.global.css"
+            ],
             "scripts": []
           },
           "configurations": {
@@ -41,6 +45,21 @@
             "production": {
               "buildTarget": "demo:build:production"
             }
+          }
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "polyfills": ["zone.js", "zone.js/testing"],
+            "tsConfig": "tsconfig.json",
+            "karmaConfig": "karma.conf.js",
+            "assets": ["src/assets"],
+            "styles": [
+              "src/styles.css",
+              "node_modules/@fullcalendar/core/index.global.css",
+              "node_modules/@fullcalendar/resource-timeline/index.global.css"
+            ],
+            "scripts": []
           }
         }
       }
