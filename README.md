@@ -1,6 +1,6 @@
 # ds-timeline
 
-An Angular resource-timeline calendar component inspired by FullCalendar's Timeline view. Supports drag-and-drop, resize, drag-to-select, nested resources, overlap modes, theming, and more — compatible with **Angular 6 through 20+**.
+An Angular resource-timeline calendar component inspired by FullCalendar's Timeline view. Supports drag-and-drop, resize, drag-to-select, nested resources, overlap modes, theming, mobile touch, and more — compatible with **Angular 6 through 20+**.
 
 **[Live Demo →](https://windowsz.github.io/ds-timeline/)**
 
@@ -19,8 +19,11 @@ An Angular resource-timeline calendar component inspired by FullCalendar's Timel
   - [CalendarResource](#calendarresource)
   - [CalendarView](#calendarview)
   - [SlotDuration](#slotduration)
+  - [BusinessHours](#businesshours)
   - [Output Argument Types](#output-argument-types)
 - [Public API Methods](#public-api-methods)
+- [FullCalendar Compatibility](#fullcalendar-compatibility)
+- [Mobile Touch UX](#mobile-touch-ux)
 - [Resize Controls](#resize-controls)
 - [Overlap Modes](#overlap-modes)
 - [Theming](#theming)
@@ -31,18 +34,29 @@ An Angular resource-timeline calendar component inspired by FullCalendar's Timel
 ## Features
 
 - **3 built-in views** — Day, Week, Month (resource-timeline layout)
-- **Drag and drop** — move events in time and across resource rows
+- **Drag and drop** — move events in time and across resource rows; per-event `resourceEditable` flag
 - **Resize** — drag start or end edge to change event duration; per-event control via `editable`, `startEditable`, `durationEditable`
 - **Drag-to-select** — click and drag on empty grid cells to create new events
-- **Nested resources** — multi-level resource hierarchy with expand/collapse
+- **Nested resources** — multi-level resource hierarchy with expand/collapse; `resourcesInitiallyExpanded` controls default state
+- **Resource grouping** — `resourceGroupField` groups flat resources by an `extendedProps` field value
+- **Resource ordering** — `resourceOrder` sorts the resource list by any field (`'title'`, `'-title'`, etc.)
+- **Filter by events** — `filterResourcesWithEvents` hides resources that have no events
 - **Overlap modes** — `multiple` (free overlap) or `single` (one event per slot, conflicts shown with red hatch)
+- **Event stacking** — `eventMaxStack` caps visible events per row and shows a "+N more" chip
+- **Business hours** — `businessHours` shades non-business-hour slots in Day view
+- **Event display modes** — `display: 'background'` renders translucent full-row highlight; `'none'` hides the event
+- **Event URL** — `url` on an event opens the URL in a new tab on click
+- **Per-resource colors** — `eventBackgroundColor`, `eventBorderColor`, `eventTextColor` on resources
+- **Time bounds** — `slotMinTime` / `slotMaxTime` limit the Day view to a specific time range
+- **Auto-scroll** — `scrollTime` auto-scrolls the Day view on load; `scrollTimeReset` controls scroll reset on navigation
+- **Slot label interval** — `slotLabelInterval` shows labels less frequently than slot ticks
 - **Now indicator** — live red line showing the current time (updates every 30 s)
 - **Hover tooltips** — rich event detail tooltip on mouse hover
+- **Mobile touch UX** — long-press (300 ms) activates drag or range-select; short taps scroll normally
 - **Light / Dark themes** — full CSS variable theming
 - **12h / 24h time format** — configurable header and event labels
 - **OnPush change detection** — optimized for performance
-- **Resource click** — `resourceClick` output fires when the user clicks a resource row
-- **Resource column scroll** — hovering over the resource column and scrolling moves the timeline, matching the behaviour of the time header
+- **FullCalendar-compatible** — accepts the same event/resource object shapes as FullCalendar's Timeline plugin
 - **Zero external dependencies** — pure Angular, no third-party libraries required
 
 ---
@@ -118,33 +132,53 @@ export class AppComponent {
 
 ## Inputs
 
+### Core inputs
+
 | Input | Type | Default | Description |
 |---|---|---|---|
 | `events` | `CalendarEvent[]` | `[]` | Array of events to display. |
-| `resources` | `CalendarResource[]` | `[]` | Array of resources (rows). Supports nested children for grouping. |
+| `resources` | `CalendarResource[]` | `[]` | Array of resources (rows). Supports nested `children` for grouping. |
 | `initialView` | `CalendarView` | `'resourceTimelineWeek'` | The view to display on first render. |
 | `initialDate` | `Date \| null` | `null` | The date the calendar starts on. Defaults to today. |
-| `views` | `CalendarView[]` | all three | Views listed in the toolbar switcher. Pass a single-element array to lock the calendar to one view (the switcher is hidden automatically). |
+| `views` | `CalendarView[]` | all three | Views listed in the toolbar switcher. Pass a single-element array to lock to one view. |
 | `theme` | `'light' \| 'dark'` | `'light'` | Color theme. |
 | `slotMinWidth` | `number` | `60` | Minimum width in pixels of each time slot column. |
-| `slotDuration` | `SlotDuration` | `'01:00:00'` | Duration of each time slot. Affects Day view granularity. |
+| `slotDuration` | `SlotDuration` | `'01:00:00'` | Duration of each time slot (Day view granularity). |
 | `timeFormat` | `'12h' \| '24h'` | `'12h'` | Time label format in headers and event times. |
 | `resourceAreaWidth` | `number` | `200` | Width in pixels of the left resource column. |
 | `resourceAreaHeaderContent` | `string` | `'Resources'` | Label shown at the top of the resource column. |
 | `headerHeight` | `number` | `52` | Height in pixels of the sticky timeline header. |
 | `rowHeight` | `number` | `40` | Height in pixels of each resource row. |
 | `eventHeight` | `number` | `28` | Height in pixels of rendered event bars. |
-| `showToolbar` | `boolean` | `true` | Show or hide the top toolbar (navigation + view switcher). |
-| `showViewSwitcher` | `boolean` | `true` | Show or hide the view switcher buttons. Also hidden automatically when `views` has only one entry. |
+| `showToolbar` | `boolean` | `true` | Show or hide the top toolbar. |
+| `showViewSwitcher` | `boolean` | `true` | Show or hide the view switcher buttons. |
 | `showNowIndicator` | `boolean` | `true` | Show the red vertical line indicating the current time. |
 | `selectable` | `boolean` | `true` | Enable drag-to-select on empty grid cells. |
-| `selectMinDuration` | `number` | `900000` | Minimum selection duration in milliseconds before a `select` event fires. Default is 15 minutes (900 000 ms). |
-| `editable` | `boolean` | `true` | Master switch for drag and resize. When `false`, no events can be moved or resized. |
-| `defaultEventColor` | `string` | `'#3d91ff'` | Fallback background color for events with no `color` property. |
-| `showEventTooltip` | `boolean` | `true` | Show a rich hover tooltip when the mouse rests on an event. |
-| `tooltipDelay` | `number` | `300` | Delay in milliseconds before the hover tooltip appears. |
+| `selectMinDuration` | `number` | `900000` | Minimum selection duration in ms before `select` fires (default 15 min). |
+| `editable` | `boolean` | `true` | Master switch for drag and resize. |
+| `defaultEventColor` | `string` | `'#3d91ff'` | Fallback background color for events with no `color` set. |
+| `showEventTooltip` | `boolean` | `true` | Show a rich hover tooltip on events. |
+| `tooltipDelay` | `number` | `300` | Delay in ms before the hover tooltip appears. |
 | `eventOverlap` | `'multiple' \| 'single'` | `'multiple'` | Overlap mode. See [Overlap Modes](#overlap-modes). |
-| `allowResourceDrag` | `boolean` | `true` | When `true`, dragging an event vertically moves it to a different resource row. When `false`, drag is horizontal-only. |
+| `allowResourceDrag` | `boolean` | `true` | When `true`, vertical drag moves event to a different resource. |
+
+### FullCalendar-parity inputs
+
+| Input | Type | Default | FC equivalent | Description |
+|---|---|---|---|---|
+| `slotMinTime` | `string` | `'00:00:00'` | `slotMinTime` | Earliest time slot in Day view (`'HH:MM:SS'`). |
+| `slotMaxTime` | `string` | `'24:00:00'` | `slotMaxTime` | Latest time slot in Day view (`'HH:MM:SS'`). |
+| `scrollTime` | `string \| null` | `null` | `scrollTime` | Auto-scroll target time on Day view load (`'HH:MM:SS'`). |
+| `scrollTimeReset` | `boolean` | `true` | `scrollTimeReset` | Reset scroll position on navigation. Set `false` to preserve scroll. |
+| `resourcesInitiallyExpanded` | `boolean` | `true` | `resourcesInitiallyExpanded` | Whether child resources are expanded on initial load. |
+| `eventMinWidth` | `number` | `30` | `eventMinWidth` | Minimum pixel width of an event block. |
+| `expandRows` | `boolean` | `false` | `expandRows` | Expand rows to fill available container height. |
+| `resourceGroupField` | `string \| null` | `null` | `resourceGroupField` | Group resources by this `extendedProps` field value. |
+| `resourceOrder` | `string \| null` | `null` | `resourceOrder` | Sort key for resources. Prefix with `'-'` for descending (e.g. `'-title'`). |
+| `filterResourcesWithEvents` | `boolean` | `false` | `filterResourcesWithEvents` | Hide resources that have no events in the current view. |
+| `eventMaxStack` | `number \| null` | `null` | `eventMaxStack` | Max stacked events per row; extras become "+N more". |
+| `slotLabelInterval` | `string \| null` | `null` | `slotLabelInterval` | Show slot header labels every N duration (e.g. `'01:00:00'`). |
+| `businessHours` | `BusinessHours` | `false` | `businessHours` | Shade non-business-hour slots. `true` = Mon–Fri 09:00–17:00. See [BusinessHours](#businesshours). |
 
 **Locking to a single view:**
 
@@ -152,11 +186,16 @@ export class AppComponent {
 <!-- Show only the Week view — switcher is hidden automatically -->
 <ds-timeline [views]="['resourceTimelineWeek']">
 
-<!-- Show only Day and Week — Month is removed from the switcher -->
-<ds-timeline [views]="['resourceTimelineDay', 'resourceTimelineWeek']">
+<!-- Restrict Day view to business hours -->
+<ds-timeline
+  [views]="['resourceTimelineDay']"
+  slotMinTime="08:00:00"
+  slotMaxTime="18:00:00"
+  scrollTime="08:00:00"
+  [businessHours]="true">
 ```
 
-> **Column fitting:** Week and Month view columns automatically expand to fill the available container width. Day view scrolls horizontally as usual.
+> **Column fitting:** Week and Month view columns automatically expand to fill the available container width. Day view scrolls horizontally.
 
 ---
 
@@ -165,13 +204,17 @@ export class AppComponent {
 | Output | Payload | When it fires |
 |---|---|---|
 | `eventClick` | `EventClickArg` | User clicks an event bar. |
-| `eventChange` | `EventChangeArg` | An event was moved or resized and the mouse was released. |
-| `dateClick` | `DateClickArg` | User clicks an empty grid cell (without dragging). |
-| `select` | `SelectArg` | User finishes a drag-to-select gesture (mouseup). |
-| `selecting` | `SelectArg` | Fires continuously while the user is drag-selecting. |
+| `eventChange` | `EventChangeArg` | An event was moved or resized (fires on mouse-up). |
+| `eventDrop` | `EventDropArg` | Event was dragged to a new time or resource (FC: `eventDrop`). |
+| `eventResize` | `EventResizeArg` | Event duration was changed by resizing (FC: `eventResize`). |
+| `dateClick` | `DateClickArg` | User clicks an empty grid cell (no drag). |
+| `select` | `SelectArg` | User finishes a drag-to-select gesture. |
+| `selecting` | `SelectArg` | Fires continuously while drag-selecting. |
 | `viewChange` | `{ view, start, end }` | User switches between Day / Week / Month views. |
-| `datesSet` | `DatesSetArg` | Fires on initial render and whenever the visible date range changes. |
+| `datesSet` | `DatesSetArg` | Fires on initial render and on every date range change. |
 | `resourceClick` | `ResourceClickArg` | User clicks a row in the resource column. |
+
+> **Note:** `eventDrop` and `eventResize` fire *in addition to* `eventChange`. Use `eventChange` for a unified handler, or the specific outputs for FullCalendar parity.
 
 ---
 
@@ -185,30 +228,55 @@ interface CalendarEvent {
   title: string;                           // Display label on the event bar
   start: Date | string;                    // Start date/time
   end?: Date | string;                     // End date/time (defaults to start + 1 hour)
+  allDay?: boolean;                        // All-day flag (stored; Week/Month views always show full-day)
   resourceId?: string;                     // Assign to a single resource row
   resourceIds?: string[];                  // Assign to multiple resource rows
+  groupId?: string;                        // Group ID (FC parity; field stored for future use)
+  url?: string;                            // URL opened in new tab on click (preventDefault cancels)
+  display?: 'auto' | 'block' | 'background' | 'inverse-background' | 'none';
   color?: string;                          // Background and border color (hex)
   backgroundColor?: string;               // Override background color only
   borderColor?: string;                   // Override border color only
   textColor?: string;                     // Override text color (auto-contrast if omitted)
   editable?: boolean;                     // false → cannot be dragged or resized
-  startEditable?: boolean;                // false → start-edge resize handle hidden
+  startEditable?: boolean;                // false → start-edge resize handle hidden, drag disabled
   durationEditable?: boolean;             // false → end-edge resize handle hidden
+  resourceEditable?: boolean;             // false → event cannot be moved to a different resource
   extendedProps?: { [key: string]: any }; // Custom metadata (e.g. description, priority)
+}
+```
+
+**`display` values:**
+
+| Value | Behavior |
+|---|---|
+| `'auto'` / `'block'` | Default rendering — colored event bar with title and time |
+| `'background'` | Translucent full-row highlight; non-interactive |
+| `'inverse-background'` | Same as `'background'` (inverse shading applied via CSS) |
+| `'none'` | Event is not rendered |
+
+**`url` example:**
+
+```typescript
+{
+  id: '1', title: 'Docs', start: ..., end: ..., resourceId: 'fe',
+  url: 'https://example.com/docs'
+  // Clicking opens the URL in a new tab.
+  // To cancel: (eventClick)="onClickHandler($event)" → arg.jsEvent.preventDefault()
 }
 ```
 
 **Per-event editability quick reference:**
 
-| Flag on event | Drag | Start handle | End handle |
-|---|:---:|:---:|:---:|
-| *(defaults — all enabled)* | yes | shown | shown |
-| `editable: false` | no | hidden | hidden |
-| `startEditable: false` | no | hidden | shown |
-| `durationEditable: false` | yes | shown | hidden |
-| `startEditable: false` + `durationEditable: false` | no | hidden | hidden |
+| Flag | Drag | Start handle | End handle | Resource change |
+|---|:---:|:---:|:---:|:---:|
+| *(defaults)* | yes | shown | shown | yes |
+| `editable: false` | no | hidden | hidden | no |
+| `startEditable: false` | no | hidden | shown | yes |
+| `durationEditable: false` | yes | shown | hidden | yes |
+| `resourceEditable: false` | yes | shown | shown | **no** |
 
-> The global `[editable]` input is a master switch. If it is `false`, all per-event flags are overridden and nothing can be edited.
+> The global `[editable]` input is a master switch. If it is `false`, per-event flags are ignored.
 
 ---
 
@@ -220,6 +288,11 @@ interface CalendarResource {
   title: string;                           // Display name in the resource column
   children?: CalendarResource[];           // Nested child resources (creates a collapsible group)
   extendedProps?: { [key: string]: any };  // Custom metadata (e.g. subtitle, capacity)
+  // Default event colors for all events on this resource:
+  eventBackgroundColor?: string;
+  eventBorderColor?: string;
+  eventTextColor?: string;
+  eventClassNames?: string | string[];
 }
 ```
 
@@ -234,16 +307,34 @@ const resources: CalendarResource[] = [
     children: [
       { id: 'frontend', title: 'Frontend Team' },
       { id: 'backend',  title: 'Backend Team' },
-      { id: 'devops',   title: 'DevOps / Infra' }
     ]
   },
-  { id: 'room-a', title: 'Room A', extendedProps: { subtitle: 'Cap: 8' } }
+  {
+    id: 'room-a',
+    title: 'Room A',
+    extendedProps: { subtitle: 'Cap: 8' },
+    eventBackgroundColor: '#2ed573'  // all events on this resource are green by default
+  }
 ];
 ```
 
-Groups are expanded by default. Users can click the arrow button to collapse/expand them.
+**Resource grouping with `resourceGroupField`:**
 
-`extendedProps.subtitle` is rendered as a secondary line below the resource name in the resource column.
+```typescript
+// Resources have a dept field in extendedProps
+const resources: CalendarResource[] = [
+  { id: 'alice', title: 'Alice', extendedProps: { dept: 'Engineering' } },
+  { id: 'bob',   title: 'Bob',   extendedProps: { dept: 'Design' } },
+  { id: 'carol', title: 'Carol', extendedProps: { dept: 'Engineering' } },
+];
+```
+
+```html
+<!-- Groups resources by extendedProps.dept with a bold separator row -->
+<ds-timeline [resources]="resources" resourceGroupField="dept">
+```
+
+`extendedProps.subtitle` is rendered as a secondary line below the resource name.
 
 ---
 
@@ -275,19 +366,59 @@ type SlotDuration =
 
 ---
 
+### BusinessHours
+
+```typescript
+type BusinessHours =
+  | boolean
+  | {
+      startTime: string;      // e.g. '09:00:00'
+      endTime: string;        // e.g. '17:00:00'
+      daysOfWeek?: number[];  // 0=Sun, 1=Mon … 6=Sat. Defaults to [1,2,3,4,5]
+    };
+```
+
+```html
+<!-- Default: Mon–Fri, 09:00–17:00 -->
+<ds-timeline [businessHours]="true">
+
+<!-- Custom: Mon–Sat, 08:00–20:00 -->
+<ds-timeline [businessHours]="{ startTime: '08:00:00', endTime: '20:00:00', daysOfWeek: [1,2,3,4,5,6] }">
+```
+
+Slots outside business hours are shaded with a subtle gray overlay. Business hours only render visually in the **Day view**.
+
+---
+
 ### Output Argument Types
 
 ```typescript
 interface EventClickArg {
   event: CalendarEvent;   // The clicked event
   el: HTMLElement;        // The event's DOM element
-  jsEvent: MouseEvent;    // The native mouse event
+  jsEvent: MouseEvent;    // The native mouse event (call preventDefault() to cancel URL)
 }
 
 interface EventChangeArg {
   event: CalendarEvent;     // Updated event (new start/end/resourceId)
   oldEvent: CalendarEvent;  // State before the change
   revert: () => void;       // Call this to undo the move/resize
+}
+
+// FC parity: fires after a drag (in addition to eventChange)
+interface EventDropArg {
+  event: CalendarEvent;
+  oldEvent: CalendarEvent;
+  oldResource?: CalendarResource;  // Resource before the drag
+  newResource?: CalendarResource;  // Resource after the drag
+  revert: () => void;
+}
+
+// FC parity: fires after a resize (in addition to eventChange)
+interface EventResizeArg {
+  event: CalendarEvent;
+  oldEvent: CalendarEvent;
+  revert: () => void;
 }
 
 interface DateClickArg {
@@ -311,23 +442,20 @@ interface DatesSetArg {
 
 interface ResourceClickArg {
   resource: CalendarResource; // The resource that was clicked
-  jsEvent: MouseEvent;        // The native mouse event
+  jsEvent: MouseEvent;
 }
 ```
 
-**`resourceClick` example:**
-
-```html
-<ds-timeline (resourceClick)="onResourceClick($event)">
-</ds-timeline>
-```
+**Handling drag and resize separately (FC-style):**
 
 ```typescript
-import { ResourceClickArg } from 'ds-timeline';
+onEventDrop(arg: EventDropArg) {
+  console.log('Dragged from', arg.oldResource?.title, '→', arg.newResource?.title);
+  if (!confirm(`Move "${arg.event.title}"?`)) arg.revert();
+}
 
-onResourceClick(arg: ResourceClickArg) {
-  console.log('Clicked resource:', arg.resource.id, arg.resource.title);
-  console.log('Extended props:',  arg.resource.extendedProps);
+onEventResize(arg: EventResizeArg) {
+  console.log('Resized:', arg.oldEvent.end, '→', arg.event.end);
 }
 ```
 
@@ -351,12 +479,12 @@ Obtain a reference to the component with `@ViewChild`, then call these methods p
 | `prev` | `prev(): void` | Navigate to the previous period (day / week / month). |
 | `next` | `next(): void` | Navigate to the next period. |
 | `changeView` | `changeView(view: CalendarView): void` | Switch to a different view. |
-| `getDate` | `getDate(): Date` | Returns the current focal date of the calendar. |
+| `getDate` | `getDate(): Date` | Returns the current focal date. |
 | `addEvent` | `addEvent(event: CalendarEvent): void` | Append a new event and refresh. |
 | `removeEvent` | `removeEvent(id: string): void` | Remove an event by its `id`. |
-| `updateEvent` | `updateEvent(event: CalendarEvent): void` | Replace an existing event matched by `id`. |
-| `clearSelection` | `clearSelection(): void` | Cancel and clear any in-progress drag-to-select. |
-| `scrollToTime` | `scrollToTime(time: string): void` | Scroll the timeline to a specific time string, e.g. `'09:30'`. |
+| `updateEvent` | `updateEvent(event: CalendarEvent): void` | Replace an event matched by `id`. |
+| `clearSelection` | `clearSelection(): void` | Cancel any in-progress drag-to-select. |
+| `scrollToTime` | `scrollToTime(time: string): void` | Scroll the timeline to a specific time, e.g. `'09:30'`. |
 | `refetchEvents` | `refetchEvents(): void` | Force re-render of all events. |
 
 **Navigation example:**
@@ -368,33 +496,75 @@ this.cal.changeView('resourceTimelineDay');
 this.cal.scrollToTime('09:00');
 ```
 
-**Add and remove events programmatically:**
-
-```typescript
-const newEvent: CalendarEvent = {
-  id: 'evt-' + Date.now(),
-  title: 'New Meeting',
-  start: new Date(2026, 1, 20, 10, 0),
-  end:   new Date(2026, 1, 20, 11, 0),
-  resourceId: 'alice',
-  color: '#2ed573'
-};
-this.cal.addEvent(newEvent);
-
-// Remove it later
-this.cal.removeEvent(newEvent.id);
-```
-
 **Reverting a drag/resize:**
 
 ```typescript
 onEventChange(arg: EventChangeArg) {
   const ok = confirm(`Move "${arg.event.title}"?`);
-  if (!ok) {
-    arg.revert(); // restores the event to its original position/size
-  }
+  if (!ok) arg.revert(); // restores the event to its original position/size
 }
 ```
+
+---
+
+## FullCalendar Compatibility
+
+ds-timeline is designed so that the same event and resource objects you pass to FullCalendar's Timeline plugin can be passed directly to `<ds-timeline>` without modification.
+
+| FullCalendar option | ds-timeline input | Compatibility |
+|---|---|---|
+| `events` | `[events]` | ✅ full |
+| `resources` | `[resources]` | ✅ full |
+| `initialView` | `[initialView]` | ✅ full (same strings) |
+| `initialDate` | `[initialDate]` | ✅ full |
+| `editable` | `[editable]` | ✅ full |
+| `selectable` | `[selectable]` | ✅ full |
+| `slotMinWidth` | `[slotMinWidth]` | ✅ full |
+| `slotDuration` | `[slotDuration]` | ✅ full |
+| `slotMinTime` | `[slotMinTime]` | ✅ full |
+| `slotMaxTime` | `[slotMaxTime]` | ✅ full |
+| `scrollTime` | `[scrollTime]` | ✅ full |
+| `scrollTimeReset` | `[scrollTimeReset]` | ✅ full |
+| `resourcesInitiallyExpanded` | `[resourcesInitiallyExpanded]` | ✅ full |
+| `eventMinWidth` | `[eventMinWidth]` | ✅ full |
+| `expandRows` | `[expandRows]` | ✅ full |
+| `resourceGroupField` | `[resourceGroupField]` | ✅ full |
+| `resourceOrder` | `[resourceOrder]` | ✅ full |
+| `filterResourcesWithEvents` | `[filterResourcesWithEvents]` | ✅ full |
+| `eventMaxStack` | `[eventMaxStack]` | ✅ full |
+| `slotLabelInterval` | `[slotLabelInterval]` | ✅ full |
+| `businessHours` | `[businessHours]` | ✅ full |
+| `resourceAreaWidth` | `[resourceAreaWidth]` | ⚠️ partial (FC accepts `"200px"` string; ds accepts number) |
+| `nowIndicator` | `[showNowIndicator]` | ⚠️ partial (different input name) |
+| `themeSystem` | `[theme]` | ⚠️ partial (`'light'\|'dark'` instead of `'standard'\|'bootstrap'`) |
+| `eventClick(info)` | `(eventClick)` | ✅ full |
+| `eventChange(info)` | `(eventChange)` | ✅ full |
+| `eventDrop(info)` | `(eventDrop)` | ✅ full |
+| `eventResize(info)` | `(eventResize)` | ✅ full |
+| `select(info)` | `(select)` | ✅ full |
+| `datesSet(info)` | `(datesSet)` | ✅ full |
+| `dateClick(info)` | `(dateClick)` | ✅ full |
+| `event.url` | `CalendarEvent.url` | ✅ full |
+| `event.display` | `CalendarEvent.display` | ⚠️ partial (`background`/`none` supported) |
+| `event.resourceEditable` | `CalendarEvent.resourceEditable` | ✅ full |
+| `resource.eventBackgroundColor` | `CalendarResource.eventBackgroundColor` | ✅ full |
+| `resource.eventBorderColor` | `CalendarResource.eventBorderColor` | ✅ full |
+| `resource.eventTextColor` | `CalendarResource.eventTextColor` | ✅ full |
+
+> A full side-by-side comparison UI is available in the demo app at the **Compare** tab.
+
+---
+
+## Mobile Touch UX
+
+ds-timeline uses a **long-press pattern** for touch devices to avoid conflicting with native scroll:
+
+- **Short tap** on an event → fires `eventClick` (normal tap behavior)
+- **Long-press (300 ms) on an event** → activates drag mode (haptic vibration if supported)
+- **Long-press on empty cell** → activates range-select mode
+- **Moving finger > 8 px before 300 ms** → cancels the timer and lets the browser scroll normally
+
+This means users can freely scroll the timeline by swiping, and opt into drag/select by holding.
 
 ---
 
@@ -405,45 +575,27 @@ Each event's resize behaviour is controlled at three levels:
 ### 1. Component level (global switch)
 
 ```html
-<!-- Disable all editing for every event -->
 <ds-timeline [editable]="false">
 ```
 
 ### 2. Per-event — disable all editing
 
 ```typescript
-const event: CalendarEvent = {
-  id: '1',
-  title: 'Locked Event',
-  start: ..., end: ..., resourceId: ...,
-  editable: false  // hides both resize handles and disables drag
-};
+{ id: '1', title: 'Locked', start: ..., end: ..., resourceId: ..., editable: false }
 ```
 
 ### 3. Per-event — fine-grained control
 
 ```typescript
-// End handle only (duration locked, but start can still be dragged)
-const event: CalendarEvent = {
-  id: '2', title: 'No End Resize', start: ..., end: ..., resourceId: ...,
-  durationEditable: false  // end-edge handle hidden
-};
+// Cannot be moved to a different resource, but can be dragged in time
+{ id: '2', ..., resourceEditable: false }
 
-// Start handle only (event can still be dragged to a new time)
-const event: CalendarEvent = {
-  id: '3', title: 'No Start Resize', start: ..., end: ..., resourceId: ...,
-  startEditable: false  // start-edge handle hidden, drag also disabled
-};
+// Duration is locked; can still be dragged
+{ id: '3', ..., durationEditable: false }
 
-// Completely locked — no resize, no drag
-const event: CalendarEvent = {
-  id: '4', title: 'Fully Locked', start: ..., end: ..., resourceId: ...,
-  startEditable: false,
-  durationEditable: false
-};
+// Start time is locked; can still resize the end
+{ id: '4', ..., startEditable: false }
 ```
-
-> Events blocked by the `single` overlap mode also have their resize handles hidden and drag disabled automatically, regardless of these flags.
 
 ---
 
@@ -451,7 +603,7 @@ const event: CalendarEvent = {
 
 ### `'multiple'` (default)
 
-Events freely overlap in the same resource row. All events remain fully interactive regardless of overlap.
+Events freely overlap in the same resource row. All events remain fully interactive.
 
 ```html
 <ds-timeline [eventOverlap]="'multiple'">
@@ -459,18 +611,18 @@ Events freely overlap in the same resource row. All events remain fully interact
 
 ### `'single'`
 
-Only one event is allowed per time slot per resource. When a later event in the `events` array conflicts with an earlier one:
-
-- It is rendered with a **red diagonal hatch pattern** at reduced opacity.
-- Its resize handles are hidden.
-- It cannot be dragged.
-- Dragging another event into an occupied slot is blocked.
+Only one event is allowed per time slot per resource. Conflicting events are rendered with a **red diagonal hatch pattern** at reduced opacity and cannot be dragged.
 
 ```html
 <ds-timeline [eventOverlap]="'single'">
 ```
 
-The **first** event in the `events` array that occupies a given time range is considered the "winner". All subsequent overlapping events on the same resource are marked blocked.
+**Capping visible events with `eventMaxStack`:**
+
+```html
+<!-- Show max 3 events per row; extras become "+2 more" chip -->
+<ds-timeline [eventMaxStack]="3">
+```
 
 ---
 
@@ -485,7 +637,7 @@ The **first** event in the `events` array that occupies a given time range is co
 
 ### CSS custom properties
 
-All colors are driven by CSS variables. Override them on the host element in your global stylesheet:
+All colors are driven by CSS variables. Override them on the host element:
 
 ```css
 ds-timeline {
@@ -512,20 +664,18 @@ ds-timeline {
 
 ### Event colors
 
-Individual event colors are set on each `CalendarEvent`:
+Event colors are resolved in this priority order:
+1. `event.color` / `event.backgroundColor`
+2. `resource.eventBackgroundColor`
+3. `[defaultEventColor]` input (global fallback)
 
 ```typescript
-const event: CalendarEvent = {
-  id: '1', title: 'Meeting', start: ..., end: ..., resourceId: ...,
-  color: '#ff4757',           // sets both background and border
-  // or individually:
-  backgroundColor: '#ff4757',
-  borderColor: '#c0392b',
-  textColor: '#ffffff'        // omit to let the component auto-pick white or dark text
-};
-```
+// Per-event color
+{ id: '1', color: '#ff4757', ... }
 
-When `textColor` is omitted the component automatically picks white or dark text based on the background luminance (`color` or `backgroundColor`). Set `textColor` explicitly to override this.
+// Per-resource default (all events on this resource inherit it)
+{ id: 'room-a', title: 'Room A', eventBackgroundColor: '#2ed573' }
+```
 
 ---
 
@@ -533,41 +683,23 @@ When `textColor` is omitted the component automatically picks white or dark text
 
 A live demo is hosted at **[https://windowsz.github.io/ds-timeline/](https://windowsz.github.io/ds-timeline/)**.
 
-A full demo application is also included in `src/app/`. Run it locally with:
+Run it locally with:
 
 ```bash
 npm start
 ```
 
-The demo showcases:
-
+The demo includes:
 - Light / Dark theme toggle
-- Multiple / Single overlap mode toggle
-- Slot width selector (Compact → X-Wide)
-- Row height selector
+- Multiple / Single overlap mode
+- Slot width, row height, slot duration controls
 - 12h / 24h time format toggle
-- Cross-row drag toggle (`allowResourceDrag`)
-- Random event generator
-- Drag-to-select with a dialog to create events
-- Resource column click (`resourceClick`) logged in real time
-- Event log panel showing all emitted output events in real time
-
-**Sample resource structure used in the demo:**
-
-```
-Engineering (group)
-  ├─ Frontend Team
-  ├─ Backend Team
-  ├─ QA & Testing
-  └─ DevOps / Infra
-Design (group)
-  ├─ UX Research
-  └─ Visual Design
-Product
-Marketing
-Room A
-Room B
-```
+- Business hours toggle
+- `resourceGroupField` demo
+- `eventMaxStack` demo
+- Mobile-friendly touch interactions
+- **Compare tab** — side-by-side with FullCalendar using identical data
+- Event log panel showing all emitted outputs in real time
 
 ---
 
