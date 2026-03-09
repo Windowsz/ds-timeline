@@ -7,8 +7,9 @@ import {
 import {
   CalendarEvent, CalendarResource, CalendarView,
   FlatResource, HeaderTier, SlotDuration,
-  DragState, ResizeState,
-  EventClickArg, EventChangeArg, DateClickArg, SelectArg, DatesSetArg, ResourceClickArg
+  DragState, ResizeState, BusinessHours,
+  EventClickArg, EventChangeArg, EventDropArg, EventResizeArg,
+  DateClickArg, SelectArg, DatesSetArg, ResourceClickArg
 } from './ds-timeline.types';
 import { DsTimelineService } from './ds-timeline.service';
 
@@ -129,7 +130,8 @@ export interface HoverTooltip {
                   [style.width.px]="slotWidth"
                   [ngClass]="{
                     'ntc-weekend': svc.isWeekend(slot),
-                    'ntc-today-col': svc.isToday(slot, currentView)
+                    'ntc-today-col': svc.isToday(slot, currentView),
+                    'ntc-non-business': isNonBusinessHour(slot)
                   }"></div>
                 <div class="ntc-bg-filler"></div>
               </div>
@@ -151,16 +153,18 @@ export interface HoverTooltip {
                   [ngClass]="{
                     'ntc-evt-selected': selectedEventId === evt.id,
                     'ntc-evt-dragging': dragState !== null && dragState.eventId === evt.id,
-                    'ntc-evt-blocked': isBlocked(evt, res.id)
+                    'ntc-evt-blocked': isBlocked(evt, res.id),
+                    'ntc-evt-bg': evt.display === 'background' || evt.display === 'inverse-background',
+                    'ntc-evt-hidden': evt.display === 'none'
                   }"
                   [style.left.px]="getEventLeft(evt)"
                   [style.width.px]="getEventWidth(evt)"
                   [style.minWidth.px]="eventMinWidth"
-                  [style.top.px]="getEventTopStacked(evt, res.id, ei)"
-                  [style.height.px]="eventHeight"
-                  [style.backgroundColor]="evt.color || evt.backgroundColor || defaultEventColor"
-                  [style.borderColor]="evt.borderColor || evt.color || defaultEventColor"
-                  [style.color]="evt.textColor || svc.getContrastColor(evt.color || evt.backgroundColor || defaultEventColor)"
+                  [style.top.px]="evt.display === 'background' || evt.display === 'inverse-background' ? 0 : getEventTopStacked(evt, res.id, ei)"
+                  [style.height.px]="evt.display === 'background' || evt.display === 'inverse-background' ? getEffectiveRowHeight() : eventHeight"
+                  [style.backgroundColor]="getEventBgColor(evt, res)"
+                  [style.borderColor]="evt.borderColor || evt.color || res.original?.eventBorderColor || defaultEventColor"
+                  [style.color]="evt.textColor || res.original?.eventTextColor || svc.getContrastColor(getEventBgColor(evt, res))"
                   (mousedown)="onEventMouseDown($event, evt)"
                   (touchstart)="onEventTouchStart($event, evt)"
                   (click)="onEventClick($event, evt)"
@@ -374,6 +378,13 @@ export interface HoverTooltip {
     .ntc-res-group-label { background: var(--ntc-grp-bg) !important; border-bottom: 1px solid var(--ntc-border); cursor: default !important; }
     .ntc-res-group-label .ntc-res-name { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px; color: var(--ntc-muted); }
     .ntc-grid-group-label { background: var(--ntc-grp-bg) !important; cursor: default !important; }
+    /* NON-BUSINESS HOURS shading (businessHours) */
+    .ntc-non-business { background: rgba(0,0,0,0.035) !important; }
+    .ntc-theme-dark .ntc-non-business { background: rgba(0,0,0,0.18) !important; }
+    /* BACKGROUND EVENT (display: 'background') */
+    .ntc-evt-bg { border-radius: 0; border: none !important; opacity: 0.3; pointer-events: none; z-index: 0; }
+    /* HIDDEN EVENT (display: 'none') */
+    .ntc-evt-hidden { display: none !important; }
     /* RESIZE */
     .ntc-resize { position: absolute; top: 0; bottom: 0; width: 16px; cursor: col-resize; z-index: 5; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; touch-action: none; }
     .ntc-evt:hover .ntc-resize { opacity: 1; }
@@ -546,10 +557,37 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
    * Same as FullCalendar slotLabelInterval. Only applies to Day view.
    */
   @Input() slotLabelInterval: string | null = null;
+  /**
+   * Sort key for resources. Prefix with '-' for descending.
+   * e.g. 'title' sorts A→Z, '-title' sorts Z→A.
+   * Same as FullCalendar resourceOrder.
+   */
+  @Input() resourceOrder: string | null = null;
+  /**
+   * When true, only resources that have at least one event are shown.
+   * Same as FullCalendar filterResourcesWithEvents.
+   */
+  @Input() filterResourcesWithEvents = false;
+  /**
+   * When true (default), the scroll position resets to scrollTime on navigation.
+   * Set to false to preserve scroll position across date changes.
+   * Same as FullCalendar scrollTimeReset.
+   */
+  @Input() scrollTimeReset = true;
+  /**
+   * Highlight business hours in Day view.
+   * Pass `true` for Mon–Fri 09:00–17:00, or an object for custom hours.
+   * Same as FullCalendar businessHours.
+   */
+  @Input() businessHours: BusinessHours = false;
 
   // ===== OUTPUTS =====
   @Output() eventClick    = new EventEmitter<EventClickArg>();
   @Output() eventChange   = new EventEmitter<EventChangeArg>();
+  /** Fired when an event is dragged to a new time/resource (FC: eventDrop). */
+  @Output() eventDrop     = new EventEmitter<EventDropArg>();
+  /** Fired when an event is resized (FC: eventResize). */
+  @Output() eventResize   = new EventEmitter<EventResizeArg>();
   @Output() dateClick     = new EventEmitter<DateClickArg>();
   @Output() select        = new EventEmitter<SelectArg>();
   @Output() selecting     = new EventEmitter<SelectArg>();
@@ -641,12 +679,13 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['resources']) this.flattenResources();
+    if (changes['resources'] || changes['resourceOrder'] || changes['filterResourcesWithEvents']) this.flattenResources();
     if (changes['views'] && this.views?.length > 0 && !this.views.includes(this.currentView)) {
       this.currentView = this.views[0];
     }
     if (changes['initialView'] && !changes['initialView'].firstChange) this.currentView = this.initialView;
-    if (changes['slotDuration'] || changes['slotMinWidth'] || changes['initialView'] || changes['resources']) this.buildTimeline();
+    if (changes['slotDuration'] || changes['slotMinWidth'] || changes['initialView'] || changes['resources'] ||
+        changes['resourceOrder'] || changes['filterResourcesWithEvents']) this.buildTimeline();
   }
 
   ngDoCheck() {
@@ -690,15 +729,15 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     this.viewChange.emit({ view, start: this.getViewStart(), end: this.getViewEnd() });
   }
 
-  buildTimeline() {
+  buildTimeline(resetScroll = true) {
     const containerWidth = this.timelineEl?.nativeElement?.clientWidth || 0;
     const r = this.svc.buildTimeline(this.currentView, this.currentDate, this.slotDuration, this.slotMinWidth, containerWidth, this.slotMinTime, this.slotMaxTime);
     this.slots = r.slots; this.headerTier1 = r.tier1;
     this.slotWidth = r.slotWidth; this.totalWidth = r.totalWidth; this.currentTitle = r.title;
     this.updateNow(); this.cdr.markForCheck();
     this.datesSet.emit({ view: this.currentView, start: this.getViewStart(), end: this.getViewEnd(), title: this.currentTitle });
-    // Auto-scroll to scrollTime after the view renders
-    if (this.scrollTime) {
+    // Auto-scroll: on navigation, respect scrollTimeReset; on first load always scroll
+    if (this.scrollTime && (resetScroll || this.scrollTimeReset)) {
       setTimeout(() => { this.scrollToTime(this.scrollTime!); }, 0);
     }
   }
@@ -751,6 +790,27 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
       }
     };
     flatten(this.resources, 0);
+
+    // --- resourceOrder: sort by a field ('title', '-id', etc.) ---
+    if (this.resourceOrder) {
+      const key  = this.resourceOrder.startsWith('-') ? this.resourceOrder.slice(1) : this.resourceOrder;
+      const desc = this.resourceOrder.startsWith('-');
+      this.flatResources.sort((a, b) => {
+        const va = (key === 'title' ? a.title : (a.extendedProps?.[key] ?? a.id)) ?? '';
+        const vb = (key === 'title' ? b.title : (b.extendedProps?.[key] ?? b.id)) ?? '';
+        const cmp = String(va).localeCompare(String(vb));
+        return desc ? -cmp : cmp;
+      });
+    }
+
+    // --- filterResourcesWithEvents: remove resources with no events ---
+    if (this.filterResourcesWithEvents) {
+      const eventIds = new Set(this.events.map(e => e.resourceId).filter(Boolean));
+      this.flatResources = this.flatResources.filter(r => {
+        if (r.isGroupLabel) return true; // keep group headers for now (pruned below)
+        return eventIds.has(r.id);
+      });
+    }
   }
 
   toggleResource(res: FlatResource) { res.expanded = !res.expanded; this.flattenResources(); this.cdr.markForCheck(); }
@@ -789,6 +849,27 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
       return this.getEventTop() + this.eventMaxStack * (this.eventHeight + 2);
     }
     return this.getEventTop() + this.eventHeight + 4;
+  }
+
+  // ===== BUSINESS HOURS =====
+  /** Returns true when a slot falls inside business hours (used for CSS shading). */
+  isBusinessHour(slot: Date): boolean {
+    if (!this.businessHours) return false;
+    const bh = this.businessHours === true
+      ? { startTime: '09:00:00', endTime: '17:00:00', daysOfWeek: [1,2,3,4,5] }
+      : this.businessHours as { startTime: string; endTime: string; daysOfWeek?: number[] };
+    const dow = bh.daysOfWeek ?? [1,2,3,4,5];
+    if (!dow.includes(slot.getDay())) return false;
+    const slotMs  = (slot.getHours() * 3600 + slot.getMinutes() * 60) * 1000;
+    const startMs = this.svc.parseTimeMs(bh.startTime || '09:00:00');
+    const endMs   = this.svc.parseTimeMs(bh.endTime   || '17:00:00');
+    return slotMs >= startMs && slotMs < endMs;
+  }
+
+  /** True when the slot is OUTSIDE business hours (shade it). */
+  isNonBusinessHour(slot: Date): boolean {
+    if (!this.businessHours) return false;
+    return !this.isBusinessHour(slot);
   }
 
   // ===== EVENTS =====
@@ -906,6 +987,11 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     return res ? res.title : evt.resourceId;
   }
 
+  /** Resolves effective background color: event > resource default > global default. */
+  getEventBgColor(evt: CalendarEvent, res: FlatResource): string {
+    return evt.color || evt.backgroundColor || res.original?.eventBackgroundColor || this.defaultEventColor;
+  }
+
   // ===== SELECTION BOX HELPERS =====
   getSelLeft(): number {
     if (!this.selState) return 0;
@@ -973,7 +1059,12 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     if (this.isBlocked(evt, evt.resourceId || '')) return;
     e.stopPropagation();
     this.selectedEventId = evt.id;
-    this.eventClick.emit({ event: evt, el: e.currentTarget as HTMLElement, jsEvent: e });
+    const el = e.currentTarget as HTMLElement;
+    this.eventClick.emit({ event: evt, el, jsEvent: e });
+    // Open url unless the event listener called preventDefault()
+    if (evt.url && !e.defaultPrevented) {
+      window.open(evt.url, '_blank', 'noopener');
+    }
     this.cdr.markForCheck();
   }
 
@@ -1144,7 +1235,8 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
       const deltaMs = dx * msPerPx;
       const idx = this.findIdx(this.dragState.eventId);
 
-      if (this.allowResourceDrag) {
+      const canChangeResource = this.allowResourceDrag && this.dragState.originalEvent.resourceEditable !== false;
+      if (canChangeResource) {
         const targetRes = this.resourceAtClientY(clientY);
         this.dragTargetResourceId = targetRes ? targetRes.id : this.dragState.sourceResourceId;
       }
@@ -1158,7 +1250,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
         newStartMs = Math.max(viewStart.getTime(), newStartMs);
         newStartMs = Math.min(viewEnd.getTime() - dur, newStartMs);
 
-        const targetResourceId = this.allowResourceDrag
+        const targetResourceId = canChangeResource
           ? (this.dragTargetResourceId || this.dragState.sourceResourceId)
           : this.dragState.sourceResourceId;
 
@@ -1241,7 +1333,12 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
         const resourceChanged = newEvt.resourceId !== oldEvt.resourceId;
         if (timeChanged || resourceChanged) {
           const ci = idx;
-          this.eventChange.emit({ event: newEvt, oldEvent: oldEvt, revert: () => { this.events = this.events.slice(); this.events[ci] = oldEvt; this.cdr.markForCheck(); } });
+          const revert = () => { this.events = this.events.slice(); this.events[ci] = oldEvt; this.cdr.markForCheck(); };
+          this.eventChange.emit({ event: newEvt, oldEvent: oldEvt, revert });
+          // Also emit specific eventDrop (FC parity)
+          const oldRes = oldEvt.resourceId ? this.flatResources.find(r => r.id === oldEvt.resourceId)?.original : undefined;
+          const newRes = newEvt.resourceId ? this.flatResources.find(r => r.id === newEvt.resourceId)?.original : undefined;
+          this.eventDrop.emit({ event: newEvt, oldEvent: oldEvt, oldResource: oldRes, newResource: newRes, revert });
         }
       }
       this.dragState = null;
@@ -1252,7 +1349,10 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
       const idx = this.findIdx(this.resizeState.eventId);
       if (idx > -1) {
         const ci = idx, oldEvt = this.resizeState.originalEvent;
-        this.eventChange.emit({ event: this.events[idx], oldEvent: oldEvt, revert: () => { this.events = this.events.slice(); this.events[ci] = oldEvt; this.cdr.markForCheck(); } });
+        const revert = () => { this.events = this.events.slice(); this.events[ci] = oldEvt; this.cdr.markForCheck(); };
+        this.eventChange.emit({ event: this.events[idx], oldEvent: oldEvt, revert });
+        // Also emit specific eventResize (FC parity)
+        this.eventResize.emit({ event: this.events[idx], oldEvent: oldEvt, revert });
       }
       this.resizeState = null; this.cdr.markForCheck();
     }

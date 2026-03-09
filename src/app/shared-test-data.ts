@@ -189,5 +189,19 @@ export const OPTION_MAP: OptionMapping[] = [
   { fcOption: 'expandRows',               dsInput: '[expandRows]',               notes: "Identical boolean. Rows expand to fill container height.", compatible: 'full' },
   { fcOption: 'resourceGroupField',        dsInput: '[resourceGroupField]',       notes: "Identical string. Groups flat resources by extendedProps field.", compatible: 'full' },
   { fcOption: 'eventMaxStack',             dsInput: '[eventMaxStack]',            notes: "Identical number. Hides excess events with '+N more' chip.", compatible: 'full' },
-  { fcOption: 'slotLabelInterval',         dsInput: '[slotLabelInterval]',        notes: "Same string format. Shows labels less frequently than slots.", compatible: 'full' }
+  { fcOption: 'slotLabelInterval',         dsInput: '[slotLabelInterval]',        notes: "Same string format. Shows labels less frequently than slots.", compatible: 'full' },
+  // ---- Round 2: additional FC parity ----
+  { fcOption: 'resourceOrder',             dsInput: '[resourceOrder]',            notes: "Same string format ('title', '-title'). Sorts flat resource list.", compatible: 'full' },
+  { fcOption: 'filterResourcesWithEvents', dsInput: '[filterResourcesWithEvents]',notes: "Identical boolean. Hides resources that have no events in current view.", compatible: 'full' },
+  { fcOption: 'scrollTimeReset',           dsInput: '[scrollTimeReset]',          notes: "Identical boolean (default true). Controls scroll reset on navigation.", compatible: 'full' },
+  { fcOption: 'businessHours',             dsInput: '[businessHours]',            notes: "boolean | {startTime, endTime, daysOfWeek}. Shades non-business slots in Day view.", compatible: 'full' },
+  { fcOption: 'eventDrop(info)',           dsInput: '(eventDrop)',                notes: "Both provide { event, oldEvent, oldResource, newResource, revert }.", compatible: 'full' },
+  { fcOption: 'eventResize(info)',         dsInput: '(eventResize)',              notes: "Both provide { event, oldEvent, revert }.", compatible: 'full' },
+  { fcOption: 'event.url',                 dsInput: 'CalendarEvent.url',          notes: "URL opened on click (window.open); preventDefault() on eventClick cancels it.", compatible: 'full' },
+  { fcOption: 'event.display',             dsInput: 'CalendarEvent.display',      notes: "'background'/'inverse-background'/'none' supported; 'block'/'auto' = default render.", compatible: 'partial' },
+  { fcOption: 'event.groupId',             dsInput: 'CalendarEvent.groupId',      notes: "Field stored in type; synchronized group-drag not yet implemented.", compatible: 'partial' },
+  { fcOption: 'event.resourceEditable',    dsInput: 'CalendarEvent.resourceEditable', notes: "Identical boolean. When false, prevents moving event to a different resource.", compatible: 'full' },
+  { fcOption: 'resource.eventBackgroundColor', dsInput: 'CalendarResource.eventBackgroundColor', notes: "Per-resource default event background color.", compatible: 'full' },
+  { fcOption: 'resource.eventBorderColor', dsInput: 'CalendarResource.eventBorderColor', notes: "Per-resource default event border color.", compatible: 'full' },
+  { fcOption: 'resource.eventTextColor',   dsInput: 'CalendarResource.eventTextColor',   notes: "Per-resource default event text color.", compatible: 'full' }
 ];
