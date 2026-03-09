@@ -43,6 +43,10 @@ export interface FlatResource {
   children?: CalendarResource[];
   extendedProps?: { [key: string]: any };
   original: CalendarResource;
+  /** True for synthetic group-label rows inserted by resourceGroupField */
+  isGroupLabel?: boolean;
+  /** The group field value displayed in a group-label row */
+  groupLabelValue?: string;
 }
 
 export interface HeaderTier {

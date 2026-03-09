@@ -179,5 +179,15 @@ export const OPTION_MAP: OptionMapping[] = [
   // Overlap / constraints
   { fcOption: 'eventOverlap (boolean/fn)', dsInput: '[eventOverlap]',             notes: "FC: boolean or function; ds: 'multiple'|'single' mode", compatible: 'partial' },
   // Theme
-  { fcOption: 'themeSystem',               dsInput: '[theme]',                    notes: "FC: 'standard'|'bootstrap'; ds: 'light'|'dark'", compatible: 'partial' }
+  { fcOption: 'themeSystem',               dsInput: '[theme]',                    notes: "FC: 'standard'|'bootstrap'; ds: 'light'|'dark'", compatible: 'partial' },
+  // ---- Newly added to match FC ----
+  { fcOption: 'slotMinTime',               dsInput: '[slotMinTime]',              notes: "Same string format 'HH:MM:SS'. Limits Day view to business hours.", compatible: 'full' },
+  { fcOption: 'slotMaxTime',               dsInput: '[slotMaxTime]',              notes: "Same string format 'HH:MM:SS'. Limits Day view end.", compatible: 'full' },
+  { fcOption: 'scrollTime',                dsInput: '[scrollTime]',               notes: "Same string format. Auto-scrolls Day view on load.", compatible: 'full' },
+  { fcOption: 'resourcesInitiallyExpanded',dsInput: '[resourcesInitiallyExpanded]',notes: "Identical boolean. Controls initial expand state.", compatible: 'full' },
+  { fcOption: 'eventMinWidth',             dsInput: '[eventMinWidth]',            notes: "Identical number (px). Default 30 matches FC default.", compatible: 'full' },
+  { fcOption: 'expandRows',               dsInput: '[expandRows]',               notes: "Identical boolean. Rows expand to fill container height.", compatible: 'full' },
+  { fcOption: 'resourceGroupField',        dsInput: '[resourceGroupField]',       notes: "Identical string. Groups flat resources by extendedProps field.", compatible: 'full' },
+  { fcOption: 'eventMaxStack',             dsInput: '[eventMaxStack]',            notes: "Identical number. Hides excess events with '+N more' chip.", compatible: 'full' },
+  { fcOption: 'slotLabelInterval',         dsInput: '[slotLabelInterval]',        notes: "Same string format. Shows labels less frequently than slots.", compatible: 'full' }
 ];

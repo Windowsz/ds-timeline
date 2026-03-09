@@ -65,15 +65,18 @@ export interface HoverTooltip {
           <div class="ntc-res-rows" #resRows>
             <div *ngFor="let res of flatResources"
               class="ntc-res-row"
-              [ngClass]="{ 'ntc-res-group': res.isGroup }"
-              [style.height.px]="rowHeight"
-              [style.paddingLeft.px]="res.level * 18 + 10"
-              (click)="onResourceClick($event, res)">
+              [ngClass]="{
+                'ntc-res-group': res.isGroup,
+                'ntc-res-group-label': res.isGroupLabel
+              }"
+              [style.height.px]="res.isGroupLabel ? 28 : getEffectiveRowHeight()"
+              [style.paddingLeft.px]="res.isGroupLabel ? 10 : res.level * 18 + 10"
+              (click)="res.isGroupLabel ? null : onResourceClick($event, res)">
               <button *ngIf="res.isGroup" class="ntc-expand-btn" type="button"
                 (click)="$event.stopPropagation(); toggleResource(res)">{{ res.expanded ? '&#9660;' : '&#9658;' }}</button>
               <div class="ntc-res-info">
                 <span class="ntc-res-name">{{ res.title }}</span>
-                <span class="ntc-res-sub" *ngIf="res.extendedProps && res.extendedProps['subtitle']">
+                <span class="ntc-res-sub" *ngIf="!res.isGroupLabel && res.extendedProps && res.extendedProps['subtitle']">
                   {{ res.extendedProps['subtitle'] }}
                 </span>
               </div>
@@ -97,8 +100,9 @@ export interface HoverTooltip {
                 [style.width.px]="slotWidth"
                 [ngClass]="{
                   'ntc-weekend': svc.isWeekend(slot),
-                  'ntc-today-col': svc.isToday(slot, currentView)
-                }">{{ svc.formatSlotLabel(slot, currentView, slotDuration, timeFormat) }}</div>
+                  'ntc-today-col': svc.isToday(slot, currentView),
+                  'ntc-hdr-silent': !showSlotLabel(slot)
+                }">{{ showSlotLabel(slot) ? svc.formatSlotLabel(slot, currentView, slotDuration, timeFormat) : '' }}</div>
               <div class="ntc-hdr-cell ntc-hdr-filler"></div>
             </div>
           </div>
@@ -108,14 +112,15 @@ export interface HoverTooltip {
             <div *ngFor="let res of flatResources"
               class="ntc-grid-row"
               [ngClass]="{
-                'ntc-grid-group': res.isGroup,
-                'ntc-row-selecting': selState && selState.resourceId === res.id,
-                'ntc-row-drag-over': dragState && dragTargetResourceId === res.id && dragState.sourceResourceId !== res.id
+                'ntc-grid-group':      res.isGroup,
+                'ntc-grid-group-label': res.isGroupLabel,
+                'ntc-row-selecting':   selState && selState.resourceId === res.id,
+                'ntc-row-drag-over':   dragState && dragTargetResourceId === res.id && dragState.sourceResourceId !== res.id
               }"
-              [style.height.px]="rowHeight"
-              [style.cursor]="selectable && !res.isGroup ? 'crosshair' : 'default'"
-              (mousedown)="onGridMouseDown($event, res)"
-              (touchstart)="onGridTouchStart($event, res)">
+              [style.height.px]="res.isGroupLabel ? 28 : getEffectiveRowHeight()"
+              [style.cursor]="(selectable && !res.isGroup && !res.isGroupLabel) ? 'crosshair' : 'default'"
+              (mousedown)="res.isGroupLabel ? null : onGridMouseDown($event, res)"
+              (touchstart)="res.isGroupLabel ? null : onGridTouchStart($event, res)">
 
               <!-- Slot background columns -->
               <div class="ntc-bg-cols">
@@ -130,7 +135,7 @@ export interface HoverTooltip {
               </div>
 
               <!-- DRAG SELECTION BOX -->
-              <div *ngIf="selState && selState.resourceId === res.id"
+              <div *ngIf="!res.isGroupLabel && selState && selState.resourceId === res.id"
                 class="ntc-sel-box"
                 [style.left.px]="getSelLeft()"
                 [style.width.px]="getSelWidth()"
@@ -139,9 +144,9 @@ export interface HoverTooltip {
                 <span class="ntc-sel-label">{{ getSelLabel() }}</span>
               </div>
 
-              <!-- Events -->
-              <div class="ntc-evts-layer">
-                <div *ngFor="let evt of getResourceEvents(res.id); let ei = index"
+              <!-- Events (capped by eventMaxStack) -->
+              <div class="ntc-evts-layer" *ngIf="!res.isGroupLabel">
+                <div *ngFor="let evt of getVisibleEvents(res.id); let ei = index"
                   class="ntc-evt"
                   [ngClass]="{
                     'ntc-evt-selected': selectedEventId === evt.id,
@@ -150,6 +155,7 @@ export interface HoverTooltip {
                   }"
                   [style.left.px]="getEventLeft(evt)"
                   [style.width.px]="getEventWidth(evt)"
+                  [style.minWidth.px]="eventMinWidth"
                   [style.top.px]="getEventTopStacked(evt, res.id, ei)"
                   [style.height.px]="eventHeight"
                   [style.backgroundColor]="evt.color || evt.backgroundColor || defaultEventColor"
@@ -180,6 +186,13 @@ export interface HoverTooltip {
                     <span class="ntc-resize-grip"></span>
                   </div>
                 </div>
+              </div>
+
+              <!-- +N more chip (eventMaxStack) -->
+              <div *ngIf="!res.isGroupLabel && getHiddenEventsCount(res.id) > 0"
+                class="ntc-more-chip"
+                [style.top.px]="getMoreChipTop(res.id)">
+                +{{ getHiddenEventsCount(res.id) }} more
               </div>
 
               <!-- Now indicator -->
@@ -331,7 +344,7 @@ export interface HoverTooltip {
     .ntc-evt {
       position: absolute; border-radius: 3px; border: 1px solid transparent;
       pointer-events: all; cursor: pointer; overflow: visible;
-      user-select: none; box-sizing: border-box; min-width: 4px;
+      user-select: none; box-sizing: border-box;
       transition: box-shadow 0.15s, opacity 0.15s;
       touch-action: none;
     }
@@ -353,6 +366,14 @@ export interface HoverTooltip {
     .ntc-evt-inner { height: 100%; padding: 1px 18px 1px 7px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
     .ntc-evt-title { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
     .ntc-evt-time  { font-size: 10px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
+    /* +N MORE CHIP */
+    .ntc-more-chip { position: absolute; left: 4px; font-size: 10px; font-weight: 700; color: var(--ntc-primary); background: rgba(61,145,255,0.12); border: 1px solid rgba(61,145,255,0.3); border-radius: 8px; padding: 1px 7px; pointer-events: none; white-space: nowrap; z-index: 3; }
+    /* SILENT SLOT (slotLabelInterval) */
+    .ntc-hdr-silent { color: transparent; border-right-color: var(--ntc-border-lt); }
+    /* RESOURCE GROUP LABEL ROW (resourceGroupField) */
+    .ntc-res-group-label { background: var(--ntc-grp-bg) !important; border-bottom: 1px solid var(--ntc-border); cursor: default !important; }
+    .ntc-res-group-label .ntc-res-name { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px; color: var(--ntc-muted); }
+    .ntc-grid-group-label { background: var(--ntc-grp-bg) !important; cursor: default !important; }
     /* RESIZE */
     .ntc-resize { position: absolute; top: 0; bottom: 0; width: 16px; cursor: col-resize; z-index: 5; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; touch-action: none; }
     .ntc-evt:hover .ntc-resize { opacity: 1; }
@@ -474,6 +495,58 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
    */
   @Input() allowResourceDrag = true;
 
+  // ===== FULLCALENDAR-PARITY INPUTS =====
+  /**
+   * Earliest time slot shown in Day view (e.g. '08:00:00').
+   * Same as FullCalendar slotMinTime. Default shows full day.
+   */
+  @Input() slotMinTime = '00:00:00';
+  /**
+   * Latest time slot shown in Day view (e.g. '20:00:00').
+   * Same as FullCalendar slotMaxTime. Default shows full day.
+   */
+  @Input() slotMaxTime = '24:00:00';
+  /**
+   * Time to auto-scroll to when the view first renders (e.g. '08:00:00').
+   * Same as FullCalendar scrollTime. Only applies to Day view.
+   * Set to null to disable auto-scroll.
+   */
+  @Input() scrollTime: string | null = null;
+  /**
+   * Whether resource groups are expanded on initial load.
+   * Same as FullCalendar resourcesInitiallyExpanded. Default: true.
+   */
+  @Input() resourcesInitiallyExpanded = true;
+  /**
+   * Minimum pixel width of an event block.
+   * Same as FullCalendar eventMinWidth. Default: 30 (FC default).
+   */
+  @Input() eventMinWidth = 30;
+  /**
+   * When true, resource rows expand to fill the available container height.
+   * Same as FullCalendar expandRows.
+   */
+  @Input() expandRows = false;
+  /**
+   * When set, resources are visually grouped by this extendedProps field value,
+   * with a bold group-label row acting as a divider — instead of (or in addition to)
+   * hierarchical children. Same as FullCalendar resourceGroupField.
+   * e.g. resourceGroupField="dept" groups resources by extendedProps.dept.
+   */
+  @Input() resourceGroupField: string | null = null;
+  /**
+   * Maximum number of events that can be stacked vertically per row.
+   * Additional events are hidden and represented by a "+N more" chip.
+   * Same as FullCalendar eventMaxStack. Default: null (unlimited).
+   */
+  @Input() eventMaxStack: number | null = null;
+  /**
+   * How frequently the slot-header labels are shown.
+   * e.g. slotDuration='00:15:00' + slotLabelInterval='01:00:00' → label every hour.
+   * Same as FullCalendar slotLabelInterval. Only applies to Day view.
+   */
+  @Input() slotLabelInterval: string | null = null;
+
   // ===== OUTPUTS =====
   @Output() eventClick    = new EventEmitter<EventClickArg>();
   @Output() eventChange   = new EventEmitter<EventChangeArg>();
@@ -519,6 +592,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   private touchEndListener!:  (e: TouchEvent) => void;
   private resizeListener!:    () => void;
   private resColTouchStartY = 0;
+  private bodyHeight = 0;
   private longPressTimer: any = null;
   private longPressStartX = 0;
   private longPressStartY = 0;
@@ -546,7 +620,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     this.mouseUpListener   = (e: MouseEvent) => this.onGlobalMouseUp(e);
     this.touchMoveListener = (e: TouchEvent) => this.onGlobalTouchMove(e);
     this.touchEndListener  = (e: TouchEvent) => this.onGlobalTouchEnd(e);
-    this.resizeListener    = () => { this.buildTimeline(); this.cdr.markForCheck(); };
+    this.resizeListener    = () => { this.measureBodyHeight(); this.buildTimeline(); this.cdr.markForCheck(); };
     document.addEventListener('mousemove', this.mouseMoveListener);
     document.addEventListener('mouseup',   this.mouseUpListener);
     document.addEventListener('touchmove', this.touchMoveListener, { passive: false });
@@ -556,8 +630,14 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
 
   ngAfterViewInit() {
     // Re-build with actual container width now that the DOM is available
+    this.measureBodyHeight();
     this.buildTimeline();
     this.cdr.markForCheck();
+  }
+
+  private measureBodyHeight() {
+    const el = this.timelineEl?.nativeElement;
+    if (el) this.bodyHeight = Math.max(0, el.clientHeight - this.headerHeight);
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -612,21 +692,60 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
 
   buildTimeline() {
     const containerWidth = this.timelineEl?.nativeElement?.clientWidth || 0;
-    const r = this.svc.buildTimeline(this.currentView, this.currentDate, this.slotDuration, this.slotMinWidth, containerWidth);
+    const r = this.svc.buildTimeline(this.currentView, this.currentDate, this.slotDuration, this.slotMinWidth, containerWidth, this.slotMinTime, this.slotMaxTime);
     this.slots = r.slots; this.headerTier1 = r.tier1;
     this.slotWidth = r.slotWidth; this.totalWidth = r.totalWidth; this.currentTitle = r.title;
     this.updateNow(); this.cdr.markForCheck();
     this.datesSet.emit({ view: this.currentView, start: this.getViewStart(), end: this.getViewEnd(), title: this.currentTitle });
+    // Auto-scroll to scrollTime after the view renders
+    if (this.scrollTime) {
+      setTimeout(() => { this.scrollToTime(this.scrollTime!); }, 0);
+    }
   }
 
   // ===== RESOURCES =====
   flattenResources() {
+    const prev = this.flatResources; // preserve expand state across rebuilds
     this.flatResources = [];
+
+    // --- resourceGroupField: flat grouping by extendedProps field ---
+    if (this.resourceGroupField) {
+      const field = this.resourceGroupField;
+      const groups = new Map<string, CalendarResource[]>();
+      for (const r of this.resources) {
+        // Support one level of children too
+        const rows = (r.children && r.children.length) ? r.children : [r];
+        for (const row of rows) {
+          const key = String(row.extendedProps?.[field] ?? r.extendedProps?.[field] ?? '(ungrouped)');
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key)!.push(row);
+        }
+      }
+      for (const [groupValue, members] of groups) {
+        // Synthetic group-label row — not a real resource
+        this.flatResources.push({
+          id: '__grplabel__' + groupValue,
+          title: groupValue,
+          level: 0,
+          isGroup: false,
+          expanded: true,
+          isGroupLabel: true,
+          groupLabelValue: groupValue,
+          original: { id: '__grplabel__' + groupValue, title: groupValue }
+        });
+        for (const r of members) {
+          this.flatResources.push({ id: r.id, title: r.title, level: 1, isGroup: false, expanded: true, extendedProps: r.extendedProps, original: r });
+        }
+      }
+      return;
+    }
+
+    // --- Default: hierarchical children flattening ---
     const flatten = (list: CalendarResource[], level: number) => {
       for (const r of list) {
         const hasChildren = !!(r.children && r.children.length);
-        const existing = this.flatResources.find(f => f.id === r.id);
-        const expanded = existing ? existing.expanded : true;
+        const existing    = prev.find(f => f.id === r.id);
+        const expanded    = existing ? existing.expanded : this.resourcesInitiallyExpanded;
         this.flatResources.push({ id: r.id, title: r.title, level, isGroup: hasChildren, expanded, children: r.children, extendedProps: r.extendedProps, original: r });
         if (hasChildren && expanded) flatten(r.children!, level + 1);
       }
@@ -635,6 +754,42 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   }
 
   toggleResource(res: FlatResource) { res.expanded = !res.expanded; this.flattenResources(); this.cdr.markForCheck(); }
+
+  // ===== EXPAND-ROWS: effective row height =====
+  getEffectiveRowHeight(): number {
+    if (!this.expandRows || this.bodyHeight <= 0 || this.flatResources.length === 0) return this.rowHeight;
+    return Math.max(this.rowHeight, Math.floor(this.bodyHeight / this.flatResources.length));
+  }
+
+  // ===== SLOT LABEL INTERVAL =====
+  /** Returns false when the slot should be silent (tick only, no label text). */
+  showSlotLabel(slot: Date): boolean {
+    if (!this.slotLabelInterval || this.currentView !== 'resourceTimelineDay') return true;
+    const parts = this.slotLabelInterval.split(':').map(Number);
+    const intervalMins = (parts[0] || 0) * 60 + (parts[1] || 0);
+    if (intervalMins <= 0) return true;
+    const slotMins = slot.getHours() * 60 + slot.getMinutes();
+    return slotMins % intervalMins === 0;
+  }
+
+  // ===== EVENT MAX STACK =====
+  /** Events to actually render (capped at eventMaxStack). */
+  getVisibleEvents(resourceId: string): CalendarEvent[] {
+    const all = this.getResourceEvents(resourceId);
+    return (this.eventMaxStack !== null && this.eventMaxStack > 0) ? all.slice(0, this.eventMaxStack) : all;
+  }
+  /** Number of events hidden by eventMaxStack cap. */
+  getHiddenEventsCount(resourceId: string): number {
+    if (this.eventMaxStack === null) return 0;
+    return Math.max(0, this.getResourceEvents(resourceId).length - this.eventMaxStack);
+  }
+  /** Top offset for the "+N more" chip, placed just below the last visible stacked event. */
+  getMoreChipTop(resourceId: string): number {
+    if (this.eventOverlap === 'single' && this.eventMaxStack !== null) {
+      return this.getEventTop() + this.eventMaxStack * (this.eventHeight + 2);
+    }
+    return this.getEventTop() + this.eventHeight + 4;
+  }
 
   // ===== EVENTS =====
   getResourceEvents(resourceId: string): CalendarEvent[] {
@@ -1169,8 +1324,8 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   }
 
   // ===== VIEW RANGE =====
-  getViewStart() { return this.svc.getViewStart(this.currentView, this.currentDate); }
-  getViewEnd()   { return this.svc.getViewEnd(this.currentView, this.currentDate); }
+  getViewStart() { return this.svc.getViewStart(this.currentView, this.currentDate, this.slotMinTime); }
+  getViewEnd()   { return this.svc.getViewEnd(this.currentView, this.currentDate, this.slotMaxTime); }
 
   // ===== FORMAT =====
   formatEventTime(evt: CalendarEvent): string {
@@ -1205,6 +1360,19 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   removeEvent(id: string)             { this.events = this.events.filter(e => e.id !== id); this.cdr.markForCheck(); }
   updateEvent(u: CalendarEvent)       { const i = this.findIdx(u.id); if (i > -1) { this.events = this.events.slice(); this.events[i] = u; this.cdr.markForCheck(); } }
   clearSelection()                    { this.selState = null; this.isSelecting = false; this.cdr.markForCheck(); }
-  scrollToTime(t: string)             { if (!this.timelineEl) return; const [h, m] = t.split(':').map(Number); this.timelineEl.nativeElement.scrollLeft = ((h * 60 + m) / 1440) * this.totalWidth; }
+  scrollToTime(t: string) {
+    if (!this.timelineEl) return;
+    const [h, m] = (t || '00:00').split(':').map(Number);
+    const targetMs = (h * 60 + m) * 60000;
+    if (this.currentView === 'resourceTimelineDay') {
+      const minMs   = this.svc.parseTimeMs(this.slotMinTime);
+      const maxMs   = this.svc.parseTimeMs(this.slotMaxTime);
+      const rangeMs = Math.max(1, maxMs - minMs);
+      const offset  = Math.max(0, targetMs - minMs);
+      this.timelineEl.nativeElement.scrollLeft = (offset / rangeMs) * this.totalWidth;
+    } else {
+      this.timelineEl.nativeElement.scrollLeft = (targetMs / 86400000) * this.totalWidth;
+    }
+  }
   refetchEvents()                     { this.cdr.markForCheck(); }
 }
