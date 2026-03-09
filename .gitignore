@@ -1,6 +1,7 @@
 # Angular specific
 /dist/
 /out-tsc/
+/projects/ds-timeline/dist/
 /tmp/
 /coverage/
 /e2e/test-output/
