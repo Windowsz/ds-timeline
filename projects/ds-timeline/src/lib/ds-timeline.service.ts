@@ -4,21 +4,32 @@ import { CalendarView, SlotDuration, TimelineResult, HeaderTier } from './ds-tim
 @Injectable({ providedIn: 'root' })
 export class DsTimelineService {
 
-  buildTimeline(view: CalendarView, date: Date, slotDuration: SlotDuration, slotMinWidth: number, containerWidth = 0): TimelineResult {
+  buildTimeline(
+    view: CalendarView,
+    date: Date,
+    slotDuration: SlotDuration,
+    slotMinWidth: number,
+    containerWidth = 0,
+    slotMinTime = '00:00:00',
+    slotMaxTime = '24:00:00'
+  ): TimelineResult {
     switch (view) {
-      case 'resourceTimelineDay':   return this.buildDay(date, slotDuration, slotMinWidth);
+      case 'resourceTimelineDay':   return this.buildDay(date, slotDuration, slotMinWidth, slotMinTime, slotMaxTime);
       case 'resourceTimelineMonth': return this.buildMonth(date, slotMinWidth, containerWidth);
       default:                      return this.buildWeek(date, slotMinWidth, containerWidth);
     }
   }
 
-  private buildDay(date: Date, slotDuration: SlotDuration, slotMinWidth: number): TimelineResult {
-    const start = this.startOfDay(date);
-    const slots: Date[] = [];
-    const slotMs = this.slotMs(slotDuration);
-    const count = Math.floor((24 * 3600000) / slotMs);
+  private buildDay(date: Date, slotDuration: SlotDuration, slotMinWidth: number, slotMinTime: string, slotMaxTime: string): TimelineResult {
+    const dayStart  = this.startOfDay(date);
+    const slotMs    = this.slotMs(slotDuration);
     const slotWidth = Math.max(slotMinWidth, 56);
-    for (let i = 0; i < count; i++) slots.push(new Date(start.getTime() + i * slotMs));
+    const minMs     = this.parseTimeMs(slotMinTime);
+    const maxMs     = this.parseTimeMs(slotMaxTime);
+    const rangeMs   = Math.max(0, maxMs - minMs);
+    const count     = Math.floor(rangeMs / slotMs);
+    const slots: Date[] = [];
+    for (let i = 0; i < count; i++) slots.push(new Date(dayStart.getTime() + minMs + i * slotMs));
     const tier1: HeaderTier[] = [{ label: date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }), width: slots.length * slotWidth }];
     return { slots, tier1, slotWidth, totalWidth: slots.length * slotWidth, title: tier1[0].label };
   }
@@ -50,14 +61,23 @@ export class DsTimelineService {
     return { slots, tier1: [{ label, width: count * slotWidth }], slotWidth, totalWidth: count * slotWidth, title: label };
   }
 
-  getViewStart(view: CalendarView, date: Date): Date {
-    if (view === 'resourceTimelineDay')   return this.startOfDay(date);
+  getViewStart(view: CalendarView, date: Date, slotMinTime = '00:00:00'): Date {
+    if (view === 'resourceTimelineDay') {
+      const s = this.startOfDay(date);
+      const minMs = this.parseTimeMs(slotMinTime);
+      return new Date(s.getTime() + minMs);
+    }
     if (view === 'resourceTimelineMonth') return this.startOfMonth(date);
     return this.startOfWeek(date);
   }
 
-  getViewEnd(view: CalendarView, date: Date): Date {
-    if (view === 'resourceTimelineDay')   return new Date(this.startOfDay(date).getTime() + 86400000); // exact midnight = no scrollbar overflow
+  getViewEnd(view: CalendarView, date: Date, slotMaxTime = '24:00:00'): Date {
+    if (view === 'resourceTimelineDay') {
+      const s    = this.startOfDay(date);
+      const maxMs = this.parseTimeMs(slotMaxTime);
+      // '24:00:00' → midnight next day
+      return new Date(s.getTime() + maxMs);
+    }
     if (view === 'resourceTimelineMonth') { const e = this.endOfMonth(date); e.setDate(e.getDate() + 1); return e; }
     return new Date(this.startOfWeek(date).getTime() + 7 * 86400000);
   }
@@ -107,6 +127,12 @@ export class DsTimelineService {
   slotMs(slot: SlotDuration): number {
     const map: { [k: string]: number } = { '00:15:00': 900000, '00:30:00': 1800000, '01:00:00': 3600000, '06:00:00': 21600000, '1.00:00:00': 86400000 };
     return map[slot] || 3600000;
+  }
+
+  /** Parse 'HH:MM:SS' (or '24:00:00') → milliseconds from midnight. */
+  parseTimeMs(t: string): number {
+    const parts = (t || '00:00:00').split(':').map(Number);
+    return ((parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0)) * 1000;
   }
 
   startOfDay(d: Date): Date   { const r = new Date(d); r.setHours(0,0,0,0); return r; }

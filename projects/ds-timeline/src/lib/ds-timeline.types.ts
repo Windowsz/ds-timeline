@@ -10,13 +10,22 @@ export type SlotDuration =
   | '06:00:00'
   | '1.00:00:00';
 
+/** Business-hours definition — identical to FullCalendar's businessHours option. */
+export type BusinessHours =
+  | boolean
+  | { startTime: string; endTime: string; daysOfWeek?: number[] };
+
 export interface CalendarEvent {
   id: string;
   title: string;
   start: Date | string;
   end?: Date | string;
+  allDay?: boolean;
   resourceId?: string;
   resourceIds?: string[];
+  groupId?: string;            // links events for synchronized dragging (FC: groupId)
+  url?: string;                // open URL on click; can preventDefault() to cancel
+  display?: 'auto' | 'block' | 'background' | 'inverse-background' | 'none';
   color?: string;
   backgroundColor?: string;
   borderColor?: string;
@@ -24,6 +33,7 @@ export interface CalendarEvent {
   editable?: boolean;
   startEditable?: boolean;
   durationEditable?: boolean;
+  resourceEditable?: boolean;  // allow moving to a different resource
   extendedProps?: { [key: string]: any };
 }
 
@@ -32,6 +42,11 @@ export interface CalendarResource {
   title: string;
   children?: CalendarResource[];
   extendedProps?: { [key: string]: any };
+  /** Default event colors for all events on this resource */
+  eventBackgroundColor?: string;
+  eventBorderColor?: string;
+  eventTextColor?: string;
+  eventClassNames?: string | string[];
 }
 
 export interface FlatResource {
@@ -43,6 +58,10 @@ export interface FlatResource {
   children?: CalendarResource[];
   extendedProps?: { [key: string]: any };
   original: CalendarResource;
+  /** True for synthetic group-label rows inserted by resourceGroupField */
+  isGroupLabel?: boolean;
+  /** The group field value displayed in a group-label row */
+  groupLabelValue?: string;
 }
 
 export interface HeaderTier {
@@ -80,6 +99,22 @@ export interface EventClickArg {
 }
 
 export interface EventChangeArg {
+  event: CalendarEvent;
+  oldEvent: CalendarEvent;
+  revert: () => void;
+}
+
+/** Emitted when an event is dragged to a new time or resource (FC: eventDrop). */
+export interface EventDropArg {
+  event: CalendarEvent;
+  oldEvent: CalendarEvent;
+  oldResource?: CalendarResource;
+  newResource?: CalendarResource;
+  revert: () => void;
+}
+
+/** Emitted when an event is resized (FC: eventResize). */
+export interface EventResizeArg {
   event: CalendarEvent;
   oldEvent: CalendarEvent;
   revert: () => void;

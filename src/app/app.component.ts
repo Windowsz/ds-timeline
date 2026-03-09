@@ -1,4 +1,4 @@
-import { Component, ViewChild, OnInit, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, ViewChild, OnInit, ElementRef, AfterViewChecked, ChangeDetectionStrategy } from '@angular/core';
 import {
   DsTimelineComponent,
   CalendarEvent, CalendarResource, CalendarView,
@@ -9,7 +9,16 @@ import {
   selector: 'app-root',
   standalone: false,
   template: `
-    <div class="demo" [ngClass]="{ 'demo-dark': theme === 'dark' }">
+    <!-- Page-level tab nav -->
+    <div class="page-nav">
+      <button type="button" [class.active]="page === 'demo'"    (click)="page = 'demo'">&#128197; Demo</button>
+      <button type="button" [class.active]="page === 'compare'" (click)="page = 'compare'">&#9878; FC Comparison</button>
+    </div>
+
+    <!-- FullCalendar comparison page -->
+    <app-compare *ngIf="page === 'compare'"></app-compare>
+
+    <div class="demo" *ngIf="page === 'demo'" [ngClass]="{ 'demo-dark': theme === 'dark' }">
 
       <!-- Header -->
       <header class="demo-hdr">
@@ -203,10 +212,17 @@ import {
         </div>
       </div>
 
-    </div>
+    </div><!-- /demo page -->
   `,
   styles: [`
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Page-level nav */
+    .page-nav { display: flex; background: #0f172a; padding: 0 20px; }
+    .page-nav button { background: none; border: none; color: #94a3b8; padding: 12px 18px; cursor: pointer; font-size: 13px; font-weight: 600; border-bottom: 3px solid transparent; transition: all 0.14s; }
+    .page-nav button:hover { color: #e2e8f0; }
+    .page-nav button.active { color: #3d91ff; border-bottom-color: #3d91ff; }
+
     .demo { min-height: 100vh; background: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; }
     .demo.demo-dark { background: #12151a; color: #e8eaf0; }
 
@@ -304,6 +320,8 @@ import {
 export class AppComponent implements OnInit, AfterViewChecked {
   @ViewChild('cal')        cal!: DsTimelineComponent;
   @ViewChild('titleInput') titleInputRef!: ElementRef<HTMLInputElement>;
+
+  page: 'demo' | 'compare' = 'demo';
 
   theme: 'light' | 'dark' = 'light';
   slotMinWidth = 60;
