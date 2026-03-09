@@ -15,12 +15,10 @@
             "outputPath": "dist/demo",
             "index": "src/index.html",
             "main": "src/main.ts",
-            "tsConfig": "tsconfig.json",
+            "tsConfig": "tsconfig.app.json",
             "assets": ["src/assets"],
             "styles": [
-              "src/styles.css",
-              "node_modules/@fullcalendar/core/index.global.css",
-              "node_modules/@fullcalendar/resource-timeline/index.global.css"
+              "src/styles.css"
             ],
             "scripts": []
           },
@@ -51,13 +49,11 @@
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
             "polyfills": ["zone.js", "zone.js/testing"],
-            "tsConfig": "tsconfig.json",
+            "tsConfig": "tsconfig.spec.json",
             "karmaConfig": "karma.conf.js",
             "assets": ["src/assets"],
             "styles": [
-              "src/styles.css",
-              "node_modules/@fullcalendar/core/index.global.css",
-              "node_modules/@fullcalendar/resource-timeline/index.global.css"
+              "src/styles.css"
             ],
             "scripts": []
           }
