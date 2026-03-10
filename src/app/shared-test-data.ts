@@ -6,7 +6,7 @@
  *
  * Data is written in ds-timeline's CalendarEvent / CalendarResource types,
  * which are structurally identical to FullCalendar's EventInput / ResourceInput —
- * so the same objects can be passed directly to either calendar.
+ * the SAME objects are passed directly to BOTH calendars without any conversion.
  */
 
 import { CalendarEvent, CalendarResource } from '../../projects/ds-timeline/src/public-api';
@@ -36,9 +36,25 @@ export const TEST_RESOURCES: CalendarResource[] = [
     title: 'Engineering',
     extendedProps: { subtitle: '18 engineers' },
     children: [
-      { id: 'fe',  title: 'Frontend',  extendedProps: { subtitle: 'Angular · React' } },
-      { id: 'be',  title: 'Backend',   extendedProps: { subtitle: 'Node · Go' } },
-      { id: 'qa',  title: 'QA & Test', extendedProps: { subtitle: 'Automation' } }
+      {
+        id: 'fe',
+        title: 'Frontend',
+        extendedProps: { subtitle: 'Angular · React' }
+      },
+      {
+        id: 'be',
+        title: 'Backend',
+        extendedProps: { subtitle: 'Node · Go' }
+      },
+      {
+        id: 'qa',
+        title: 'QA & Test',
+        extendedProps: { subtitle: 'Automation' },
+        // Per-resource default color — both FC and ds support these fields
+        eventBackgroundColor: '#00b894',
+        eventBorderColor: '#00a381',
+        eventTextColor: '#ffffff'
+      }
     ]
   },
   {
@@ -56,9 +72,11 @@ export const TEST_RESOURCES: CalendarResource[] = [
 
 // ---------------------------------------------------------------------------
 // Events  (identical structure to FullCalendar EventInput)
+// Each event is annotated with the FC API feature it exercises.
 // ---------------------------------------------------------------------------
 export const TEST_EVENTS: CalendarEvent[] = [
-  // --- basic event ---
+
+  // 1. Basic event with color
   {
     id: 'e1',
     title: 'Sprint Planning',
@@ -66,142 +84,214 @@ export const TEST_EVENTS: CalendarEvent[] = [
     end:   d(1, 11),
     resourceId: 'fe',
     color: '#3d91ff',
-    extendedProps: { description: 'Weekly sprint kick-off' }
+    extendedProps: { description: 'Weekly sprint kick-off', priority: 'high' }
   },
-  // --- uses backgroundColor + borderColor (FC API) instead of color ---
+
+  // 2. backgroundColor + borderColor + textColor (FC API — separate fields)
   {
     id: 'e2',
     title: 'Design Review',
     start: d(1, 14),
-    end:   d(1, 15),
+    end:   d(1, 15, 30),
     resourceId: 'ux',
     backgroundColor: '#fd79a8',
-    borderColor: '#e84393',
-    textColor: '#ffffff',
-    extendedProps: { description: 'Review latest mockups' }
+    borderColor:     '#e84393',
+    textColor:       '#ffffff',
+    extendedProps: { description: 'Separate backgroundColor/borderColor/textColor fields (FC parity)' }
   },
-  // --- event on a group resource ---
+
+  // 3. editable: false — event cannot be moved or resized
   {
     id: 'e3',
-    title: 'Architecture Talk',
-    start: d(2, 10),
-    end:   d(2, 12),
-    resourceId: 'be',
-    color: '#2ed573',
-    extendedProps: { description: 'API design discussion', priority: 'high' }
-  },
-  // --- non-editable event (FC: editable: false) ---
-  {
-    id: 'e4',
-    title: 'Blocked: Server Maintenance',
-    start: d(3, 0),
+    title: 'Server Maintenance (locked)',
+    start: d(2, 22),
     end:   d(3, 6),
     resourceId: 'rma',
     color: '#e17055',
     editable: false,
-    startEditable: false,
-    durationEditable: false,
-    extendedProps: { description: 'Scheduled maintenance window' }
+    extendedProps: { description: 'editable:false — cannot drag or resize' }
   },
-  // --- start-only editable (FC: startEditable: true, durationEditable: false) ---
+
+  // 4. startEditable+durationEditable both false — fully locked
   {
-    id: 'e5',
-    title: 'Product Sync',
+    id: 'e4',
+    title: 'Product Sync (fixed)',
     start: d(3, 9),
     end:   d(3, 10),
     resourceId: 'pm',
     color: '#ffa502',
-    startEditable: true,
+    startEditable:    false,
     durationEditable: false,
-    extendedProps: { description: 'Quick product alignment' }
+    extendedProps: { description: 'startEditable:false + durationEditable:false — both handles hidden' }
   },
-  // --- multi-char extendedProps ---
+
+  // 5. resourceEditable: false — can drag in time but NOT to another resource row
+  {
+    id: 'e5',
+    title: 'FE-only Task (row locked)',
+    start: d(3, 13),
+    end:   d(3, 15),
+    resourceId: 'fe',
+    color: '#a29bfe',
+    resourceEditable: false,
+    extendedProps: { description: 'resourceEditable:false — cannot be moved to a different resource' }
+  },
+
+  // 6. event.url — opens URL in new tab on click
   {
     id: 'e6',
-    title: 'Team Retro',
-    start: d(4, 13),
-    end:   d(4, 14),
-    resourceId: 'eng',
+    title: 'Docs (click opens URL)',
+    start: d(4, 10),
+    end:   d(4, 11),
+    resourceId: 'be',
     color: '#00b894',
+    url: 'https://github.com/Windowsz/ds-timeline',
+    extendedProps: { description: 'event.url: clicking opens https://github.com/Windowsz/ds-timeline in a new tab' }
+  },
+
+  // 7. display: 'background' — non-interactive full-row highlight
+  {
+    id: 'e7',
+    title: 'Background Block',
+    start: d(0, 9),
+    end:   d(6, 17),
+    resourceId: 'qa',
+    color: '#6c5ce7',
+    display: 'background',
+    extendedProps: { description: "display:'background' — non-interactive translucent highlight across the row" }
+  },
+
+  // 8. Inherits color from resource.eventBackgroundColor (no color set)
+  {
+    id: 'e8',
+    title: 'Automation Run',
+    start: d(5, 9),
+    end:   d(5, 10, 30),
+    resourceId: 'qa',
+    // No color — inherits resource.eventBackgroundColor (#00b894)
+    extendedProps: { description: 'No color on event → inherits resource.eventBackgroundColor' }
+  },
+
+  // 9. durationEditable: false — can drag to move but end handle is hidden
+  {
+    id: 'e9',
+    title: 'Duration-locked Meeting',
+    start: d(5, 14),
+    end:   d(5, 15),
+    resourceId: 'ui',
+    color: '#e84393',
+    durationEditable: false,
+    extendedProps: { description: 'durationEditable:false — end handle hidden; can still drag to move' }
+  },
+
+  // 10. groupId stored on event (FC parity field)
+  {
+    id: 'e10',
+    title: 'Standup (groupId set)',
+    start: d(2, 9),
+    end:   d(2, 9, 30),
+    resourceId: 'be',
+    groupId: 'daily-standups',
+    color: '#74b9ff',
+    extendedProps: { description: "groupId:'daily-standups' — stored on event for FC parity" }
+  },
+
+  // 11. Multi-day spanning event
+  {
+    id: 'e11',
+    title: 'Research Sprint (multi-day)',
+    start: d(1, 8),
+    end:   d(5, 17),
+    resourceId: 'ux',
+    color: '#55efc4',
+    extendedProps: { description: 'Multi-day event spanning Mon–Fri' }
+  },
+
+  // 12. Rich extendedProps
+  {
+    id: 'e12',
+    title: 'Team Retro',
+    start: d(4, 15),
+    end:   d(4, 16),
+    resourceId: 'eng',
+    color: '#fdcb6e',
     extendedProps: {
       description: 'Weekly retrospective',
       attendees: 18,
       tags: ['team', 'recurring']
     }
-  },
-  // --- uses resourceIds (multi-resource, FC API) ---
-  {
-    id: 'e7',
-    title: 'Cross-Team Standup',
-    start: d(5, 9),
-    end:   d(5, 9, 30),
-    resourceId: 'fe',     // ds-timeline picks the first matching resource
-    color: '#a29bfe',
-    extendedProps: { description: 'All-team morning standup' }
   }
 ];
 
 // ---------------------------------------------------------------------------
-// Option mapping table  (used in the comparison UI and in spec descriptions)
+// Option mapping table  (used in the comparison UI)
 // ---------------------------------------------------------------------------
 export interface OptionMapping {
   fcOption: string;
   dsInput: string;
   notes: string;
-  compatible: 'full' | 'partial' | 'different';
+  compatible: 'full' | 'partial';
 }
 
 export const OPTION_MAP: OptionMapping[] = [
   // Data inputs
-  { fcOption: 'events',                    dsInput: '[events]',                    notes: 'Same object shape (id, title, start, end, resourceId, color, extendedProps…)', compatible: 'full' },
-  { fcOption: 'resources',                 dsInput: '[resources]',                 notes: 'Same object shape (id, title, children, extendedProps)', compatible: 'full' },
+  { fcOption: 'events',                        dsInput: '[events]',                        notes: 'Same object shape — identical objects passed to both, zero conversion', compatible: 'full' },
+  { fcOption: 'resources',                     dsInput: '[resources]',                     notes: 'Same object shape (id, title, children, extendedProps)', compatible: 'full' },
   // View options
-  { fcOption: 'initialView',               dsInput: '[initialView]',               notes: 'Identical strings: resourceTimelineDay / Week / Month', compatible: 'full' },
-  { fcOption: 'initialDate',               dsInput: '[initialDate]',               notes: 'Both accept Date | string', compatible: 'full' },
-  { fcOption: 'views (toolbar buttons)',   dsInput: '[views]',                     notes: 'FC uses headerToolbar.right; ds uses views[] array', compatible: 'partial' },
+  { fcOption: 'initialView',                   dsInput: '[initialView]',                   notes: 'Identical strings: resourceTimelineDay / Week / Month', compatible: 'full' },
+  { fcOption: 'initialDate',                   dsInput: '[initialDate]',                   notes: 'Both accept Date | string', compatible: 'full' },
+  { fcOption: 'views (toolbar)',               dsInput: '[views]',                         notes: 'FC uses headerToolbar.right; ds uses views[] array', compatible: 'partial' },
   // Interaction
-  { fcOption: 'editable',                  dsInput: '[editable]',                  notes: 'Identical boolean — enables drag+resize', compatible: 'full' },
-  { fcOption: 'selectable',               dsInput: '[selectable]',                notes: 'Identical boolean — enables range selection', compatible: 'full' },
-  { fcOption: 'selectMinDistance',         dsInput: '(built-in, fixed 3 px)',      notes: 'FC: pixel threshold; ds uses 3 px internally', compatible: 'partial' },
+  { fcOption: 'editable',                      dsInput: '[editable]',                      notes: 'Identical boolean — enables drag+resize globally', compatible: 'full' },
+  { fcOption: 'selectable',                    dsInput: '[selectable]',                    notes: 'Identical boolean — enables range selection', compatible: 'full' },
   // Appearance
-  { fcOption: 'slotMinWidth',              dsInput: '[slotMinWidth]',              notes: 'Identical number (px per slot column)', compatible: 'full' },
-  { fcOption: 'slotDuration',              dsInput: '[slotDuration]',              notes: 'Same string format "HH:MM:SS" / "D.HH:MM:SS"', compatible: 'full' },
-  { fcOption: 'resourceAreaWidth',         dsInput: '[resourceAreaWidth]',         notes: 'FC accepts "200px" string; ds accepts number (200)', compatible: 'partial' },
-  { fcOption: 'resourceAreaHeaderContent', dsInput: '[resourceAreaHeaderContent]', notes: 'Identical string', compatible: 'full' },
-  { fcOption: 'nowIndicator',              dsInput: '[showNowIndicator]',          notes: 'FC: nowIndicator; ds: showNowIndicator — different name', compatible: 'partial' },
-  { fcOption: 'height / aspectRatio',      dsInput: 'CSS on host element',         notes: 'ds-timeline fills its host; set height via CSS', compatible: 'partial' },
-  // Callbacks → Angular @Outputs
-  { fcOption: 'eventClick(info)',          dsInput: '(eventClick)',                notes: 'Both provide { event, el, jsEvent }', compatible: 'full' },
-  { fcOption: 'eventChange(info)',         dsInput: '(eventChange)',               notes: 'Both provide { event, oldEvent, revert }', compatible: 'full' },
-  { fcOption: 'select(info)',              dsInput: '(select)',                    notes: 'Both provide { start, end, resource }', compatible: 'full' },
-  { fcOption: 'datesSet(info)',            dsInput: '(datesSet)',                  notes: 'Both provide { view, start, end, title }', compatible: 'full' },
-  { fcOption: 'dateClick(info)',           dsInput: '(dateClick)',                 notes: 'Both provide { date, resource, jsEvent }', compatible: 'full' },
-  // Overlap / constraints
-  { fcOption: 'eventOverlap (boolean/fn)', dsInput: '[eventOverlap]',             notes: "FC: boolean or function; ds: 'multiple'|'single' mode", compatible: 'partial' },
+  { fcOption: 'slotMinWidth',                  dsInput: '[slotMinWidth]',                  notes: 'Identical number (px per slot)', compatible: 'full' },
+  { fcOption: 'slotDuration',                  dsInput: '[slotDuration]',                  notes: 'Same "HH:MM:SS" format', compatible: 'full' },
+  { fcOption: 'resourceAreaWidth',             dsInput: '[resourceAreaWidth]',             notes: 'FC accepts "200px" string; ds accepts number', compatible: 'partial' },
+  { fcOption: 'resourceAreaHeaderContent',     dsInput: '[resourceAreaHeaderContent]',     notes: 'Identical string', compatible: 'full' },
+  { fcOption: 'nowIndicator',                  dsInput: '[showNowIndicator]',              notes: 'Different input name', compatible: 'partial' },
+  // Callbacks
+  { fcOption: 'eventClick(info)',              dsInput: '(eventClick)',                    notes: 'Both provide { event, el, jsEvent }', compatible: 'full' },
+  { fcOption: 'eventChange(info)',             dsInput: '(eventChange)',                   notes: 'Both provide { event, oldEvent, revert }', compatible: 'full' },
+  { fcOption: 'eventDrop(info)',               dsInput: '(eventDrop)',                     notes: 'Both provide { event, oldEvent, oldResource, newResource, revert }', compatible: 'full' },
+  { fcOption: 'eventResize(info)',             dsInput: '(eventResize)',                   notes: 'Both provide { event, oldEvent, revert }', compatible: 'full' },
+  { fcOption: 'select(info)',                  dsInput: '(select)',                        notes: 'Both provide { start, end, resource }', compatible: 'full' },
+  { fcOption: 'datesSet(info)',                dsInput: '(datesSet)',                      notes: 'Both provide { view, start, end, title }', compatible: 'full' },
+  { fcOption: 'dateClick(info)',               dsInput: '(dateClick)',                     notes: 'Both provide { date, resource, jsEvent }', compatible: 'full' },
+  // Overlap
+  { fcOption: 'eventOverlap',                  dsInput: "[eventOverlap]",                  notes: "FC: boolean/fn; ds: 'multiple'|'single'", compatible: 'partial' },
+  // FC-parity inputs
+  { fcOption: 'slotMinTime',                   dsInput: '[slotMinTime]',                   notes: "Same 'HH:MM:SS' format. Limits Day view start.", compatible: 'full' },
+  { fcOption: 'slotMaxTime',                   dsInput: '[slotMaxTime]',                   notes: "Same 'HH:MM:SS' format. Limits Day view end.", compatible: 'full' },
+  { fcOption: 'scrollTime',                    dsInput: '[scrollTime]',                    notes: 'Same string. Auto-scrolls Day view on load.', compatible: 'full' },
+  { fcOption: 'scrollTimeReset',               dsInput: '[scrollTimeReset]',               notes: 'Identical boolean (default true).', compatible: 'full' },
+  { fcOption: 'resourcesInitiallyExpanded',    dsInput: '[resourcesInitiallyExpanded]',    notes: 'Identical boolean.', compatible: 'full' },
+  { fcOption: 'eventMinWidth',                 dsInput: '[eventMinWidth]',                 notes: 'Identical number (px).', compatible: 'full' },
+  { fcOption: 'expandRows',                    dsInput: '[expandRows]',                    notes: 'Identical boolean.', compatible: 'full' },
+  { fcOption: 'resourceGroupField',            dsInput: '[resourceGroupField]',            notes: 'Identical string. Groups by extendedProps field.', compatible: 'full' },
+  { fcOption: 'resourceOrder',                 dsInput: '[resourceOrder]',                 notes: "Same format ('title', '-title').", compatible: 'full' },
+  { fcOption: 'filterResourcesWithEvents',     dsInput: '[filterResourcesWithEvents]',     notes: 'Identical boolean.', compatible: 'full' },
+  { fcOption: 'eventMaxStack',                 dsInput: '[eventMaxStack]',                 notes: "Identical number. Extras become '+N more'.", compatible: 'full' },
+  { fcOption: 'slotLabelInterval',             dsInput: '[slotLabelInterval]',             notes: 'Same string format.', compatible: 'full' },
+  { fcOption: 'businessHours',                 dsInput: '[businessHours]',                 notes: 'boolean | {startTime, endTime, daysOfWeek}.', compatible: 'full' },
+  // Per-event fields
+  { fcOption: 'event.url',                     dsInput: 'CalendarEvent.url',               notes: 'Opens URL in new tab on click.', compatible: 'full' },
+  { fcOption: 'event.display',                 dsInput: 'CalendarEvent.display',           notes: "'background'/'none' supported.", compatible: 'partial' },
+  { fcOption: 'event.groupId',                 dsInput: 'CalendarEvent.groupId',           notes: 'Field stored; group-drag not yet implemented.', compatible: 'partial' },
+  { fcOption: 'event.resourceEditable',        dsInput: 'CalendarEvent.resourceEditable',  notes: 'Prevents moving to different resource.', compatible: 'full' },
+  { fcOption: 'event.editable',                dsInput: 'CalendarEvent.editable',          notes: 'Disables drag+resize on a single event.', compatible: 'full' },
+  { fcOption: 'event.startEditable',           dsInput: 'CalendarEvent.startEditable',     notes: 'Hides start-edge resize handle.', compatible: 'full' },
+  { fcOption: 'event.durationEditable',        dsInput: 'CalendarEvent.durationEditable',  notes: 'Hides end-edge resize handle.', compatible: 'full' },
+  { fcOption: 'event.backgroundColor',         dsInput: 'CalendarEvent.backgroundColor',   notes: 'Same field name.', compatible: 'full' },
+  { fcOption: 'event.borderColor',             dsInput: 'CalendarEvent.borderColor',       notes: 'Same field name.', compatible: 'full' },
+  { fcOption: 'event.textColor',               dsInput: 'CalendarEvent.textColor',         notes: 'Same field name.', compatible: 'full' },
+  { fcOption: 'event.extendedProps',           dsInput: 'CalendarEvent.extendedProps',     notes: 'Identical { [key]: any }. Preserved in callbacks.', compatible: 'full' },
+  // Per-resource fields
+  { fcOption: 'resource.eventBackgroundColor', dsInput: 'CalendarResource.eventBackgroundColor', notes: 'Default bg for all events on that row.', compatible: 'full' },
+  { fcOption: 'resource.eventBorderColor',     dsInput: 'CalendarResource.eventBorderColor',     notes: 'Default border color.', compatible: 'full' },
+  { fcOption: 'resource.eventTextColor',       dsInput: 'CalendarResource.eventTextColor',       notes: 'Default text color.', compatible: 'full' },
+  { fcOption: 'resource.children',             dsInput: 'CalendarResource.children',             notes: 'Identical nested array. Collapsible group rows.', compatible: 'full' },
+  { fcOption: 'resource.extendedProps',        dsInput: 'CalendarResource.extendedProps',        notes: 'subtitle shown as secondary line; all props preserved.', compatible: 'full' },
   // Theme
-  { fcOption: 'themeSystem',               dsInput: '[theme]',                    notes: "FC: 'standard'|'bootstrap'; ds: 'light'|'dark'", compatible: 'partial' },
-  // ---- Newly added to match FC ----
-  { fcOption: 'slotMinTime',               dsInput: '[slotMinTime]',              notes: "Same string format 'HH:MM:SS'. Limits Day view to business hours.", compatible: 'full' },
-  { fcOption: 'slotMaxTime',               dsInput: '[slotMaxTime]',              notes: "Same string format 'HH:MM:SS'. Limits Day view end.", compatible: 'full' },
-  { fcOption: 'scrollTime',                dsInput: '[scrollTime]',               notes: "Same string format. Auto-scrolls Day view on load.", compatible: 'full' },
-  { fcOption: 'resourcesInitiallyExpanded',dsInput: '[resourcesInitiallyExpanded]',notes: "Identical boolean. Controls initial expand state.", compatible: 'full' },
-  { fcOption: 'eventMinWidth',             dsInput: '[eventMinWidth]',            notes: "Identical number (px). Default 30 matches FC default.", compatible: 'full' },
-  { fcOption: 'expandRows',               dsInput: '[expandRows]',               notes: "Identical boolean. Rows expand to fill container height.", compatible: 'full' },
-  { fcOption: 'resourceGroupField',        dsInput: '[resourceGroupField]',       notes: "Identical string. Groups flat resources by extendedProps field.", compatible: 'full' },
-  { fcOption: 'eventMaxStack',             dsInput: '[eventMaxStack]',            notes: "Identical number. Hides excess events with '+N more' chip.", compatible: 'full' },
-  { fcOption: 'slotLabelInterval',         dsInput: '[slotLabelInterval]',        notes: "Same string format. Shows labels less frequently than slots.", compatible: 'full' },
-  // ---- Round 2: additional FC parity ----
-  { fcOption: 'resourceOrder',             dsInput: '[resourceOrder]',            notes: "Same string format ('title', '-title'). Sorts flat resource list.", compatible: 'full' },
-  { fcOption: 'filterResourcesWithEvents', dsInput: '[filterResourcesWithEvents]',notes: "Identical boolean. Hides resources that have no events in current view.", compatible: 'full' },
-  { fcOption: 'scrollTimeReset',           dsInput: '[scrollTimeReset]',          notes: "Identical boolean (default true). Controls scroll reset on navigation.", compatible: 'full' },
-  { fcOption: 'businessHours',             dsInput: '[businessHours]',            notes: "boolean | {startTime, endTime, daysOfWeek}. Shades non-business slots in Day view.", compatible: 'full' },
-  { fcOption: 'eventDrop(info)',           dsInput: '(eventDrop)',                notes: "Both provide { event, oldEvent, oldResource, newResource, revert }.", compatible: 'full' },
-  { fcOption: 'eventResize(info)',         dsInput: '(eventResize)',              notes: "Both provide { event, oldEvent, revert }.", compatible: 'full' },
-  { fcOption: 'event.url',                 dsInput: 'CalendarEvent.url',          notes: "URL opened on click (window.open); preventDefault() on eventClick cancels it.", compatible: 'full' },
-  { fcOption: 'event.display',             dsInput: 'CalendarEvent.display',      notes: "'background'/'inverse-background'/'none' supported; 'block'/'auto' = default render.", compatible: 'partial' },
-  { fcOption: 'event.groupId',             dsInput: 'CalendarEvent.groupId',      notes: "Field stored in type; synchronized group-drag not yet implemented.", compatible: 'partial' },
-  { fcOption: 'event.resourceEditable',    dsInput: 'CalendarEvent.resourceEditable', notes: "Identical boolean. When false, prevents moving event to a different resource.", compatible: 'full' },
-  { fcOption: 'resource.eventBackgroundColor', dsInput: 'CalendarResource.eventBackgroundColor', notes: "Per-resource default event background color.", compatible: 'full' },
-  { fcOption: 'resource.eventBorderColor', dsInput: 'CalendarResource.eventBorderColor', notes: "Per-resource default event border color.", compatible: 'full' },
-  { fcOption: 'resource.eventTextColor',   dsInput: 'CalendarResource.eventTextColor',   notes: "Per-resource default event text color.", compatible: 'full' }
+  { fcOption: 'themeSystem',                   dsInput: '[theme]',                         notes: "FC: 'standard'|'bootstrap'; ds: 'light'|'dark'", compatible: 'partial' }
 ];
