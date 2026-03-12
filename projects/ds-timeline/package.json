@@ -1,8 +1,29 @@
 {
   "name": "ds-timeline",
   "version": "2.1.0",
-  "description": "FullCalendar Timeline View clone for Angular 6 through 20+. NgModule-based, zero external dependencies.",
+  "description": "Angular resource-timeline calendar component. Drag-and-drop, resize, nested resources, overlap modes, FullCalendar-compatible. Angular 6–20+.",
+  "author": "Windowsz",
   "license": "MIT",
+  "keywords": [
+    "angular",
+    "calendar",
+    "timeline",
+    "resource-timeline",
+    "scheduler",
+    "fullcalendar",
+    "drag-and-drop",
+    "gantt",
+    "resource",
+    "ngx"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Windowsz/ds-timeline.git"
+  },
+  "homepage": "https://windowsz.github.io/ds-timeline/",
+  "bugs": {
+    "url": "https://github.com/Windowsz/ds-timeline/issues"
+  },
   "peerDependencies": {
     "@angular/common": ">=6.0.0",
     "@angular/core": ">=6.0.0"
