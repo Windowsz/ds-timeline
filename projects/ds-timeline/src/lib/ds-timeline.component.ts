@@ -7,9 +7,9 @@ import {
 import {
   CalendarEvent, CalendarResource, CalendarView,
   FlatResource, HeaderTier, SlotDuration,
-  DragState, ResizeState, BusinessHours,
+  DragState, ResizeState, BusinessHours, ValidRange,
   EventClickArg, EventChangeArg, EventDropArg, EventResizeArg,
-  DateClickArg, SelectArg, DatesSetArg, ResourceClickArg
+  DateClickArg, SelectArg, DatesSetArg, ResourceClickArg, EventContentArg
 } from './ds-timeline.types';
 import { DsTimelineService } from './ds-timeline.service';
 
@@ -38,10 +38,10 @@ export interface HoverTooltip {
       <!-- TOOLBAR -->
       <div class="ntc-toolbar" *ngIf="showToolbar">
         <div class="ntc-toolbar-left">
-          <button class="ntc-btn ntc-btn-today" type="button" (click)="goToToday()">Today</button>
+          <button class="ntc-btn ntc-btn-today" type="button" (click)="goToToday()" [disabled]="!isInValidRange(today_date)">Today</button>
           <div class="ntc-nav-group">
-            <button class="ntc-btn ntc-btn-nav" type="button" (click)="navigate(-1)">&#8249;</button>
-            <button class="ntc-btn ntc-btn-nav" type="button" (click)="navigate(1)">&#8250;</button>
+            <button class="ntc-btn ntc-btn-nav" type="button" (click)="navigate(-1)" [disabled]="!canNavigate(-1)">&#8249;</button>
+            <button class="ntc-btn ntc-btn-nav" type="button" (click)="navigate(1)"  [disabled]="!canNavigate(1)">&#8250;</button>
           </div>
           <span class="ntc-title">{{ currentTitle }}</span>
         </div>
@@ -59,7 +59,7 @@ export interface HoverTooltip {
       <div class="ntc-body">
 
         <!-- Resource column -->
-        <div class="ntc-res-col" [style.width.px]="resourceAreaWidth" (wheel)="onResColWheel($event)" (touchstart)="onResColTouchStart($event)" (touchmove)="onResColTouchMove($event)">
+        <div class="ntc-res-col" [style.width]="resourceAreaWidthCss" (wheel)="onResColWheel($event)" (touchstart)="onResColTouchStart($event)" (touchmove)="onResColTouchMove($event)">
           <div class="ntc-res-header" [style.height.px]="headerHeight">
             <span class="ntc-res-header-text">{{ resourceAreaHeaderContent }}</span>
           </div>
@@ -154,14 +154,15 @@ export interface HoverTooltip {
                     'ntc-evt-selected': selectedEventId === evt.id,
                     'ntc-evt-dragging': dragState !== null && dragState.eventId === evt.id,
                     'ntc-evt-blocked': isBlocked(evt, res.id),
-                    'ntc-evt-bg': evt.display === 'background' || evt.display === 'inverse-background',
+                    'ntc-evt-bg': evt.display === 'background',
+                    'ntc-evt-inv-bg': evt.display === 'inverse-background',
                     'ntc-evt-hidden': evt.display === 'none'
                   }"
                   [style.left.px]="getEventLeft(evt)"
                   [style.width.px]="getEventWidth(evt)"
-                  [style.minWidth.px]="eventMinWidth"
-                  [style.top.px]="evt.display === 'background' || evt.display === 'inverse-background' ? 0 : getEventTopStacked(evt, res.id, ei)"
-                  [style.height.px]="evt.display === 'background' || evt.display === 'inverse-background' ? getEffectiveRowHeight() : eventHeight"
+                  [style.minWidth.px]="isBgDisplay(evt) ? 0 : eventMinWidth"
+                  [style.top.px]="isBgDisplay(evt) ? 0 : getEventTopStacked(evt, res.id, ei)"
+                  [style.height.px]="isBgDisplay(evt) ? getEffectiveRowHeight() : eventHeight"
                   [style.backgroundColor]="getEventBgColor(evt, res)"
                   [style.borderColor]="evt.borderColor || evt.color || res.original?.eventBorderColor || defaultEventColor"
                   [style.color]="evt.textColor || res.original?.eventTextColor || svc.getContrastColor(getEventBgColor(evt, res))"
@@ -172,10 +173,15 @@ export interface HoverTooltip {
                   (mouseleave)="onEventMouseLeave()"
                   (mousemove)="onEventMouseMove($event)">
                   <div class="ntc-evt-inner">
-                    <span class="ntc-evt-title">{{ evt.title }}</span>
-                    <span class="ntc-evt-time" *ngIf="currentView === 'resourceTimelineDay'">
-                      {{ formatEventTime(evt) }}
-                    </span>
+                    <ng-container *ngIf="eventContent; else defaultEvtContent">
+                      <span class="ntc-evt-custom" [innerHTML]="eventContent({ event: evt, view: currentView })"></span>
+                    </ng-container>
+                    <ng-template #defaultEvtContent>
+                      <span class="ntc-evt-title">{{ evt.title }}</span>
+                      <span class="ntc-evt-time" *ngIf="currentView === 'resourceTimelineDay'">
+                        {{ formatEventTime(evt) }}
+                      </span>
+                    </ng-template>
                   </div>
                   <div *ngIf="editable && evt.editable !== false && evt.durationEditable !== false && !isBlocked(evt, res.id)"
                     class="ntc-resize ntc-resize-end"
@@ -295,6 +301,7 @@ export interface HoverTooltip {
     .ntc-btn { border: 1px solid var(--ntc-border); background: var(--ntc-bg); color: var(--ntc-text); padding: 5px 13px; border-radius: var(--ntc-radius); cursor: pointer; font-size: 13px; font-weight: 500; line-height: 1.5; transition: background 0.14s; }
     .ntc-btn:hover { background: var(--ntc-surface); }
     .ntc-btn:focus { outline: 2px solid var(--ntc-primary); outline-offset: 1px; }
+    .ntc-btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
     .ntc-nav-group { display: flex; }
     .ntc-nav-group .ntc-btn-nav { padding: 5px 10px; font-size: 17px; line-height: 1; }
     .ntc-nav-group .ntc-btn-nav:first-child { border-radius: var(--ntc-radius) 0 0 var(--ntc-radius); border-right: none; }
@@ -369,7 +376,8 @@ export interface HoverTooltip {
     }
     .ntc-evt-inner { height: 100%; padding: 1px 18px 1px 7px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
     .ntc-evt-title { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
-    .ntc-evt-time  { font-size: 10px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
+    .ntc-evt-time   { font-size: 10px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
+    .ntc-evt-custom { display: block; width: 100%; height: 100%; overflow: hidden; }
     /* +N MORE CHIP */
     .ntc-more-chip { position: absolute; left: 4px; font-size: 10px; font-weight: 700; color: var(--ntc-primary); background: rgba(61,145,255,0.12); border: 1px solid rgba(61,145,255,0.3); border-radius: 8px; padding: 1px 7px; pointer-events: none; white-space: nowrap; z-index: 3; }
     /* SILENT SLOT (slotLabelInterval) */
@@ -383,6 +391,9 @@ export interface HoverTooltip {
     .ntc-theme-dark .ntc-non-business { background: rgba(0,0,0,0.18) !important; }
     /* BACKGROUND EVENT (display: 'background') */
     .ntc-evt-bg { border-radius: 0; border: none !important; opacity: 0.3; pointer-events: none; z-index: 0; }
+    /* INVERSE-BACKGROUND EVENT (display: 'inverse-background') — dark overlay, inverted from background events */
+    .ntc-evt-inv-bg { border-radius: 0; border: none !important; opacity: 0.15; pointer-events: none; z-index: 0; filter: invert(100%) hue-rotate(180deg); }
+    .ntc-theme-dark .ntc-evt-inv-bg { opacity: 0.2; }
     /* HIDDEN EVENT (display: 'none') */
     .ntc-evt-hidden { display: none !important; }
     /* RESIZE */
@@ -478,8 +489,19 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   @Input() slotDuration: SlotDuration = '01:00:00';
   /** '12h' = AM/PM labels (default), '24h' = 00:00–23:00 labels */
   @Input() timeFormat: '12h' | '24h' = '12h';
-  @Input() resourceAreaWidth = 200;
+  /** Width of the resource column. Accepts a number (pixels) or CSS string like '200px', '20%'. Same as FullCalendar resourceAreaWidth. */
+  @Input() resourceAreaWidth: number | string = 200;
   @Input() resourceAreaHeaderContent = 'Resources';
+
+  get resourceAreaWidthCss(): string {
+    return typeof this.resourceAreaWidth === 'string' ? this.resourceAreaWidth : this.resourceAreaWidth + 'px';
+  }
+  get resourceAreaWidthPx(): number {
+    if (typeof this.resourceAreaWidth === 'string') {
+      const n = parseFloat(this.resourceAreaWidth); return isNaN(n) ? 200 : n;
+    }
+    return this.resourceAreaWidth as number;
+  }
   @Input() headerHeight = 52;
   @Input() rowHeight = 40;
   @Input() eventHeight = 28;
@@ -492,6 +514,13 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   @Input() defaultEventColor = '#3d91ff';
   @Input() showEventTooltip = true;
   @Input() tooltipDelay = 300; // ms before tooltip shows
+  /**
+   * Custom event content renderer. Return an HTML string for custom rendering,
+   * or null/undefined to use the default title + time layout.
+   * Same as FullCalendar eventContent (HTML string output).
+   * ⚠ The returned string is inserted via innerHTML — sanitize user-generated content.
+   */
+  @Input() eventContent: ((arg: EventContentArg) => string | null | undefined) | null = null;
 
   /**
    * 'multiple' (default) — events overlap freely in the same row
@@ -505,6 +534,13 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
    * false          — drag is horizontal-only; resource never changes.
    */
   @Input() allowResourceDrag = true;
+  /**
+   * true (default) — dragging an event that has a groupId also moves all other events
+   *                  sharing the same groupId by the same delta (synchronized dragging).
+   * false          — groupId field is stored but drag affects only the single event.
+   * Same as FullCalendar groupId behaviour.
+   */
+  @Input() groupDrag = true;
 
   // ===== FULLCALENDAR-PARITY INPUTS =====
   /**
@@ -580,6 +616,13 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
    * Same as FullCalendar businessHours.
    */
   @Input() businessHours: BusinessHours = false;
+  /**
+   * Restricts the dates the calendar can navigate to.
+   * Navigation buttons and today() are blocked outside this range.
+   * Same as FullCalendar validRange.
+   * e.g. [validRange]="{ start: '2025-01-01', end: '2025-12-31' }"
+   */
+  @Input() validRange: ValidRange | null = null;
 
   // ===== OUTPUTS =====
   @Output() eventClick    = new EventEmitter<EventClickArg>();
@@ -713,14 +756,47 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     return 'Week';
   }
 
+  /** Exposed for template binding — today's date for the Today button disabled check. */
+  readonly today_date = new Date();
+
+  // ===== VALID RANGE HELPERS =====
+  isInValidRange(date: Date): boolean {
+    if (!this.validRange) return true;
+    const s = this.validRange.start ? new Date(this.validRange.start) : null;
+    const e = this.validRange.end   ? new Date(this.validRange.end)   : null;
+    if (s && date < s) return false;
+    if (e && date > e) return false;
+    return true;
+  }
+
+  /** Returns false when navigating in `dir` direction would exit the validRange. */
+  canNavigate(dir: number): boolean {
+    const d = new Date(this.currentDate);
+    if (this.currentView === 'resourceTimelineDay')   d.setDate(d.getDate() + dir);
+    if (this.currentView === 'resourceTimelineWeek')  d.setDate(d.getDate() + dir * 7);
+    if (this.currentView === 'resourceTimelineMonth') d.setMonth(d.getMonth() + dir);
+    return this.isInValidRange(d);
+  }
+
+  private clampToValidRange(date: Date): Date {
+    if (!this.validRange) return date;
+    const s = this.validRange.start ? new Date(this.validRange.start) : null;
+    const e = this.validRange.end   ? new Date(this.validRange.end)   : null;
+    let d = new Date(date);
+    if (s && d < s) d = new Date(s);
+    if (e && d > e) d = new Date(e);
+    return d;
+  }
+
   // ===== NAVIGATION =====
-  goToToday() { this.currentDate = new Date(); this.buildTimeline(); }
+  goToToday() { this.currentDate = this.clampToValidRange(new Date()); this.buildTimeline(); }
 
   navigate(dir: number) {
     const d = new Date(this.currentDate);
     if (this.currentView === 'resourceTimelineDay')   d.setDate(d.getDate() + dir);
     if (this.currentView === 'resourceTimelineWeek')  d.setDate(d.getDate() + dir * 7);
     if (this.currentView === 'resourceTimelineMonth') d.setMonth(d.getMonth() + dir);
+    if (!this.isInValidRange(d)) return; // block navigation outside validRange
     this.currentDate = d; this.buildTimeline();
   }
 
@@ -987,6 +1063,11 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     return res ? res.title : evt.resourceId;
   }
 
+  /** True for display modes that render as full-row background (background / inverse-background). */
+  isBgDisplay(evt: CalendarEvent): boolean {
+    return evt.display === 'background' || evt.display === 'inverse-background';
+  }
+
   /** Resolves effective background color: event > resource default > global default. */
   getEventBgColor(evt: CalendarEvent, res: FlatResource): string {
     return evt.color || evt.backgroundColor || res.original?.eventBackgroundColor || this.defaultEventColor;
@@ -1081,8 +1162,17 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
       startY: e.clientY,
       sourceResourceId: evt.resourceId || ''
     };
+    this.collectGroupForDrag(evt);
     this.dragTargetResourceId = evt.resourceId || null;
     this.cdr.markForCheck();
+  }
+
+  /** Collects group members into dragState when groupDrag is enabled. */
+  private collectGroupForDrag(evt: CalendarEvent) {
+    if (!this.dragState || !this.groupDrag || !evt.groupId) return;
+    const members = this.events.filter(e => e.groupId === evt.groupId && e.id !== evt.id);
+    this.dragState.groupEventIds  = members.map(e => e.id);
+    this.dragState.groupOriginals = new Map(members.map(e => [e.id, this.clone(e)]));
   }
 
   // ===== RESIZE =====
@@ -1126,6 +1216,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
         startY: this.longPressStartY,
         sourceResourceId: evt.resourceId || ''
       };
+      this.collectGroupForDrag(evt);
       this.dragTargetResourceId = evt.resourceId || null;
       if ('vibrate' in navigator) (navigator as any).vibrate(30);
       this.cdr.markForCheck();
@@ -1215,7 +1306,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
         const el = this.timelineEl?.nativeElement;
         if (el) {
           const midX = (Math.min(this.selState.startX, x) + Math.max(this.selState.startX, x)) / 2;
-          this.tooltipX = midX - el.scrollLeft + (this.resourceAreaWidth);
+          this.tooltipX = midX - el.scrollLeft + (this.resourceAreaWidthPx);
           this.tooltipY = this.headerHeight + 6;
           this.tooltipVisible = true;
         }
@@ -1273,6 +1364,23 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
           end: new Date(ns.getTime() + dur),
           resourceId: targetResourceId
         });
+
+        // Move group members by the same deltaMs
+        if (this.dragState.groupEventIds?.length) {
+          for (const gid of this.dragState.groupEventIds) {
+            const gi = this.events.findIndex(e => e.id === gid);
+            if (gi < 0) continue;
+            const gorig = this.dragState.groupOriginals!.get(gid)!;
+            const gos  = new Date(gorig.start).getTime();
+            const gdur = (gorig.end ? new Date(gorig.end).getTime() : gos + 3600000) - gos;
+            const gnew = Math.max(viewStart.getTime(), Math.min(viewEnd.getTime() - gdur, gos + deltaMs));
+            this.events[gi] = Object.assign({}, this.events[gi], {
+              start: new Date(gnew),
+              end:   new Date(gnew + gdur)
+            });
+          }
+        }
+
         this.cdr.markForCheck();
       }
     }
@@ -1333,7 +1441,19 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
         const resourceChanged = newEvt.resourceId !== oldEvt.resourceId;
         if (timeChanged || resourceChanged) {
           const ci = idx;
-          const revert = () => { this.events = this.events.slice(); this.events[ci] = oldEvt; this.cdr.markForCheck(); };
+          const groupOriginals = this.dragState?.groupOriginals ? new Map(this.dragState.groupOriginals) : null;
+          const revert = () => {
+            this.events = this.events.slice();
+            this.events[ci] = oldEvt;
+            // also revert group members
+            if (groupOriginals) {
+              for (const [gid, gorig] of groupOriginals) {
+                const gi = this.events.findIndex(e => e.id === gid);
+                if (gi > -1) this.events[gi] = gorig;
+              }
+            }
+            this.cdr.markForCheck();
+          };
           this.eventChange.emit({ event: newEvt, oldEvent: oldEvt, revert });
           // Also emit specific eventDrop (FC parity)
           const oldRes = oldEvt.resourceId ? this.flatResources.find(r => r.id === oldEvt.resourceId)?.original : undefined;

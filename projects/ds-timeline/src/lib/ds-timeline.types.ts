@@ -10,6 +10,12 @@ export type SlotDuration =
   | '06:00:00'
   | '1.00:00:00';
 
+/** Restricts the dates the user can navigate to. Same as FullCalendar validRange. */
+export interface ValidRange {
+  start?: Date | string;
+  end?: Date | string;
+}
+
 /** Business-hours definition — identical to FullCalendar's businessHours option. */
 export type BusinessHours =
   | boolean
@@ -83,6 +89,10 @@ export interface DragState {
   startX: number;
   startY: number;            // client Y when drag began
   sourceResourceId: string;  // resource the event started on
+  /** IDs of other events in the same groupId (when groupDrag is enabled). */
+  groupEventIds?: string[];
+  /** Original copies of group-member events, keyed by event ID. */
+  groupOriginals?: Map<string, CalendarEvent>;
 }
 
 export interface ResizeState {
@@ -142,4 +152,11 @@ export interface DatesSetArg {
 export interface ResourceClickArg {
   resource: CalendarResource;
   jsEvent: MouseEvent;
+}
+
+/** Argument passed to the eventContent callback. Same as FullCalendar EventContentArg (simplified). */
+export interface EventContentArg {
+  event: CalendarEvent;
+  /** The current view type. */
+  view: CalendarView;
 }
