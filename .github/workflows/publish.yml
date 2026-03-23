@@ -1,13 +1,16 @@
-name: Publish to npm
+name: Publish to npm & Create GitHub Release
 
 on:
   push:
     tags:
       - 'v*.*.*'   # triggers on v2.1.0, v2.2.0, etc.
 
+permissions:
+  contents: write   # required to create GitHub Releases and upload assets
+
 jobs:
   publish:
-    name: Build & Publish
+    name: Build, Publish & Release
     runs-on: ubuntu-latest
 
     steps:
@@ -36,6 +39,48 @@ jobs:
             exit 1
           fi
           echo "✅ Version $PKG_VERSION matches tag"
+
+      - name: Package library dist as zip
+        run: |
+          cd projects/ds-timeline/dist
+          zip -r ../../../ds-timeline-${{ github.ref_name }}.zip .
+          echo "Created ds-timeline-${{ github.ref_name }}.zip"
+          ls -lh ../../../ds-timeline-${{ github.ref_name }}.zip
+
+      - name: Create GitHub Release with dist zip
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ds-timeline ${{ github.ref_name }}
+          body: |
+            ## ds-timeline ${{ github.ref_name }}
+
+            Angular resource-timeline calendar — drop-in replacement for FullCalendar resource-timeline.
+
+            ### Install via npm
+            ```bash
+            npm install ds-timeline
+            ```
+
+            ### Direct download (no npm)
+            Download **`ds-timeline-${{ github.ref_name }}.zip`** below, unzip, and copy the contents into your project's `node_modules/ds-timeline/` folder, or reference the UMD bundle directly.
+
+            ### What's included in the zip
+            ```
+            ds-timeline-${{ github.ref_name }}.zip
+            ├── esm2022/          # ES modules (tree-shakeable)
+            ├── fesm2022/         # Flattened ES modules
+            ├── package.json
+            ├── public-api.d.ts
+            └── ...
+            ```
+
+            ### Changelog
+            See [CHANGELOG](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) for full commit history.
+          files: ds-timeline-${{ github.ref_name }}.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to npm
         run: npm publish --access public
