@@ -510,6 +510,12 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   @Input() showNowIndicator = true;
   @Input() selectable = true;
   @Input() selectMinDuration = 900000;
+  /**
+   * Controls how drag-to-select snaps to time boundaries.
+   * 'slot' (default) — snaps to slotDuration intervals (e.g. every 30min or 1hr).
+   * 'free'           — no snapping; selection follows exact mouse position.
+   */
+  @Input() selectSnap: 'slot' | 'free' = 'slot';
   @Input() editable = true;
   @Input() defaultEventColor = '#3d91ff';
   @Input() showEventTooltip = true;
@@ -1494,11 +1500,12 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     const s  = this.getViewStart();
     const en = this.getViewEnd();
     const totalMs = en.getTime() - s.getTime();
-    // x at or beyond totalWidth = exactly end of view (end of scrollbar)
     if (x >= this.totalWidth) return new Date(en);
     if (x <= 0)               return new Date(s);
-    const pct   = x / this.totalWidth;
-    const rawMs = pct * totalMs;
+    const rawMs = (x / this.totalWidth) * totalMs;
+    if (this.selectSnap === 'free') {
+      return new Date(s.getTime() + Math.min(rawMs, totalMs));
+    }
     if (this.currentView === 'resourceTimelineDay') {
       const slotMs  = this.svc.slotMs(this.slotDuration);
       const snapped = Math.round(rawMs / slotMs) * slotMs;
