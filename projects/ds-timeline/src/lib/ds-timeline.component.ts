@@ -183,13 +183,13 @@ export interface HoverTooltip {
                       </span>
                     </ng-template>
                   </div>
-                  <div *ngIf="editable && evt.editable !== false && evt.durationEditable !== false && !isBlocked(evt, res.id)"
+                  <div *ngIf="resizable && editable && evt.editable !== false && evt.durationEditable !== false && !isBlocked(evt, res.id)"
                     class="ntc-resize ntc-resize-end"
                     (mousedown)="onResizeStart($event, evt, 'end')"
                     (touchstart)="onResizeTouchStart($event, evt, 'end')">
                     <span class="ntc-resize-grip"></span>
                   </div>
-                  <div *ngIf="editable && evt.editable !== false && evt.startEditable !== false && !isBlocked(evt, res.id)"
+                  <div *ngIf="resizable && editable && evt.editable !== false && evt.startEditable !== false && !isBlocked(evt, res.id)"
                     class="ntc-resize ntc-resize-start"
                     (mousedown)="onResizeStart($event, evt, 'start')"
                     (touchstart)="onResizeTouchStart($event, evt, 'start')">
@@ -534,6 +534,8 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
    * false          — drag is horizontal-only; resource never changes.
    */
   @Input() allowResourceDrag = true;
+  /** Show resize handles on events. Default: false. */
+  @Input() resizable = false;
   /**
    * true (default) — dragging an event that has a groupId also moves all other events
    *                  sharing the same groupId by the same delta (synchronized dragging).
