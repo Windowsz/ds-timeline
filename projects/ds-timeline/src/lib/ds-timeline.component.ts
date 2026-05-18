@@ -1082,12 +1082,27 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   }
 
   // ===== SELECTION BOX HELPERS =====
+  private dateToX(date: Date): number {
+    const vs = this.getViewStart(), ve = this.getViewEnd();
+    const t = ve.getTime() - vs.getTime();
+    if (t <= 0) return 0;
+    return Math.max(0, Math.min(this.totalWidth, (date.getTime() - vs.getTime()) / t * this.totalWidth));
+  }
+
   getSelLeft(): number {
     if (!this.selState) return 0;
+    if (this.selectSnap === 'slot') {
+      const [s] = this.normalizedSel();
+      return this.dateToX(s);
+    }
     return Math.min(this.selState.startX, this.selState.currentX);
   }
   getSelWidth(): number {
     if (!this.selState) return 0;
+    if (this.selectSnap === 'slot') {
+      const [s, e] = this.normalizedSel();
+      return Math.max(2, this.dateToX(e) - this.dateToX(s));
+    }
     return Math.max(2, Math.abs(this.selState.currentX - this.selState.startX));
   }
   getSelLabel(): string {
