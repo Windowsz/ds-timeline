@@ -43,6 +43,11 @@ export interface HoverTooltip {
             <button class="ntc-btn ntc-btn-nav" type="button" (click)="navigate(-1)" [disabled]="!canNavigate(-1)">&#8249;</button>
             <button class="ntc-btn ntc-btn-nav" type="button" (click)="navigate(1)"  [disabled]="!canNavigate(1)">&#8250;</button>
           </div>
+          <input *ngIf="showDatePicker" type="date" class="ntc-date-input"
+            [value]="currentDateInput"
+            [min]="dateInputMin"
+            [max]="dateInputMax"
+            (change)="goToDate($any($event.target).value)">
           <span class="ntc-title">{{ currentTitle }}</span>
         </div>
         <div class="ntc-toolbar-right">
@@ -516,6 +521,8 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   @Input() eventHeight = 28;
   @Input() showToolbar = true;
   @Input() showViewSwitcher = true;
+  /** Show date-picker input in the toolbar for jumping to a specific date. Default: true. */
+  @Input() showDatePicker = true;
   /** Show group filter dropdown in the toolbar. Default: true. */
   @Input() showGroupFilter = true;
   @Input() showNowIndicator = true;
@@ -822,6 +829,31 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     if (this.currentView === 'resourceTimelineWeek')  d.setDate(d.getDate() + dir * 7);
     if (this.currentView === 'resourceTimelineMonth') d.setMonth(d.getMonth() + dir);
     return this.isInValidRange(d);
+  }
+
+  get currentDateInput(): string {
+    const d = this.currentDate;
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+  get dateInputMin(): string {
+    return this.validRange?.start ? this.formatDateInput(new Date(this.validRange.start)) : '';
+  }
+  get dateInputMax(): string {
+    return this.validRange?.end ? this.formatDateInput(new Date(this.validRange.end)) : '';
+  }
+  private formatDateInput(d: Date): string {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+  goToDate(dateStr: string) {
+    if (!dateStr) return;
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return;
+    this.currentDate = this.clampToValidRange(d);
+    this.buildTimeline();
   }
 
   private clampToValidRange(date: Date): Date {
