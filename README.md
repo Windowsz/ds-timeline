@@ -25,6 +25,8 @@ An Angular resource-timeline calendar component inspired by FullCalendar's Timel
 - [FullCalendar Compatibility](#fullcalendar-compatibility)
 - [Mobile Touch UX](#mobile-touch-ux)
 - [Resize Controls](#resize-controls)
+- [Date Picker](#date-picker)
+- [Group Filter](#group-filter)
 - [Overlap Modes](#overlap-modes)
 - [Theming](#theming)
 - [Demo App](#demo-app)
@@ -43,6 +45,10 @@ An Angular resource-timeline calendar component inspired by FullCalendar's Timel
 - **Filter by events** — `filterResourcesWithEvents` hides resources that have no events
 - **Overlap modes** — `multiple` (free overlap) or `single` (one event per slot, conflicts shown with red hatch)
 - **Event stacking** — `eventMaxStack` caps visible events per row and shows a "+N more" chip
+- **Resize handles** — optional start/end drag handles on events via `resizable`; respects per-event `editable`, `startEditable`, `durationEditable`
+- **Date picker** — `<input type="date">` in the toolbar for jumping directly to any date; respects `validRange`; toggle with `showDatePicker`
+- **Group filter dropdown** — toolbar `<select>` to filter the resource list by group; works with both `resourceGroupField` and hierarchical (parent/children) modes; toggle with `showGroupFilter`
+- **Select snap** — `selectSnap` controls whether drag-to-select snaps to slot boundaries (`'slot'`) or follows the exact mouse position (`'free'`)
 - **Business hours** — `businessHours` shades non-business-hour slots in Day view
 - **Event display modes** — `display: 'background'` renders translucent full-row highlight; `'none'` hides the event
 - **Event URL** — `url` on an event opens the URL in a new tab on click
@@ -152,10 +158,14 @@ export class AppComponent {
 | `eventHeight` | `number` | `28` | Height in pixels of rendered event bars. |
 | `showToolbar` | `boolean` | `true` | Show or hide the top toolbar. |
 | `showViewSwitcher` | `boolean` | `true` | Show or hide the view switcher buttons. |
+| `showDatePicker` | `boolean` | `true` | Show or hide the date-picker `<input type="date">` in the toolbar. |
+| `showGroupFilter` | `boolean` | `true` | Show or hide the group filter dropdown in the toolbar. Only visible when groups exist. |
 | `showNowIndicator` | `boolean` | `true` | Show the red vertical line indicating the current time. |
 | `selectable` | `boolean` | `true` | Enable drag-to-select on empty grid cells. |
 | `selectMinDuration` | `number` | `900000` | Minimum selection duration in ms before `select` fires (default 15 min). |
+| `selectSnap` | `'slot' \| 'free'` | `'slot'` | Snap drag-to-select to slot boundaries (`'slot'`) or follow exact mouse position (`'free'`). |
 | `editable` | `boolean` | `true` | Master switch for drag and resize. |
+| `resizable` | `boolean` | `false` | Show start/end resize handles on event bars. Respects per-event `startEditable` / `durationEditable`. |
 | `defaultEventColor` | `string` | `'#3d91ff'` | Fallback background color for events with no `color` set. |
 | `showEventTooltip` | `boolean` | `true` | Show a rich hover tooltip on events. |
 | `tooltipDelay` | `number` | `300` | Delay in ms before the hover tooltip appears. |
@@ -596,6 +606,38 @@ Each event's resize behaviour is controlled at three levels:
 // Start time is locked; can still resize the end
 { id: '4', ..., startEditable: false }
 ```
+
+---
+
+## Date Picker
+
+The toolbar contains a native `<input type="date">` that lets users jump directly to any date without clicking the navigation arrows.
+
+```html
+<!-- shown by default -->
+<ds-timeline [showDatePicker]="true">
+
+<!-- hide it -->
+<ds-timeline [showDatePicker]="false">
+```
+
+When `[validRange]` is set, the input's `min` and `max` attributes are automatically bound to the range boundaries so the browser prevents out-of-range selection.
+
+---
+
+## Group Filter
+
+When resources are grouped (either via `resourceGroupField` or a parent/children hierarchy), a `<select>` dropdown appears in the toolbar's right side. Selecting a group hides all other resources; selecting **All** restores the full list.
+
+```html
+<!-- shown by default whenever groups exist -->
+<ds-timeline [showGroupFilter]="true">
+
+<!-- hide it -->
+<ds-timeline [showGroupFilter]="false">
+```
+
+The dropdown is hidden automatically when there are no groups (flat resource list).
 
 ---
 
