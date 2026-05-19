@@ -43,10 +43,22 @@ export interface HoverTooltip {
             <button class="ntc-btn ntc-btn-nav" type="button" (click)="navigate(-1)" [disabled]="!canNavigate(-1)">&#8249;</button>
             <button class="ntc-btn ntc-btn-nav" type="button" (click)="navigate(1)"  [disabled]="!canNavigate(1)">&#8250;</button>
           </div>
+          <input *ngIf="showDatePicker" type="date" class="ntc-date-input"
+            [value]="currentDateInput"
+            [min]="dateInputMin"
+            [max]="dateInputMax"
+            (change)="goToDate($any($event.target).value)">
           <span class="ntc-title">{{ currentTitle }}</span>
         </div>
-        <div class="ntc-toolbar-right" *ngIf="showViewSwitcher && views.length > 1">
-          <div class="ntc-view-group">
+        <div class="ntc-toolbar-right">
+          <select *ngIf="showGroupFilter && resourceGroupOptions.length > 0"
+            class="ntc-group-filter"
+            [value]="activeGroupFilter ?? ''"
+            (change)="onGroupFilterChange($any($event.target).value)">
+            <option value="">All</option>
+            <option *ngFor="let g of resourceGroupOptions" [value]="g.value">{{ g.label }}</option>
+          </select>
+          <div class="ntc-view-group" *ngIf="showViewSwitcher && views.length > 1">
             <button *ngFor="let v of views"
               class="ntc-btn ntc-btn-view" type="button"
               [ngClass]="{ 'ntc-active': currentView === v }"
@@ -302,6 +314,8 @@ export interface HoverTooltip {
     .ntc-btn:hover { background: var(--ntc-surface); }
     .ntc-btn:focus { outline: 2px solid var(--ntc-primary); outline-offset: 1px; }
     .ntc-btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+    .ntc-group-filter { border: 1px solid var(--ntc-border); background: var(--ntc-bg); color: var(--ntc-text); padding: 4px 8px; border-radius: var(--ntc-radius); font-size: 13px; cursor: pointer; height: 31px; outline: none; transition: border-color 0.14s; }
+    .ntc-group-filter:focus { border-color: var(--ntc-primary); }
     .ntc-nav-group { display: flex; }
     .ntc-nav-group .ntc-btn-nav { padding: 5px 10px; font-size: 17px; line-height: 1; }
     .ntc-nav-group .ntc-btn-nav:first-child { border-radius: var(--ntc-radius) 0 0 var(--ntc-radius); border-right: none; }
@@ -507,6 +521,10 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   @Input() eventHeight = 28;
   @Input() showToolbar = true;
   @Input() showViewSwitcher = true;
+  /** Show date-picker input in the toolbar for jumping to a specific date. Default: true. */
+  @Input() showDatePicker = true;
+  /** Show group filter dropdown in the toolbar. Default: true. */
+  @Input() showGroupFilter = true;
   @Input() showNowIndicator = true;
   @Input() selectable = true;
   @Input() selectMinDuration = 900000;
@@ -655,6 +673,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   slotWidth = 60;
   totalWidth = 0;
   flatResources: FlatResource[] = [];
+  activeGroupFilter: string | null = null;
   selectedEventId: string | null = null;
   dragState: DragState | null = null;
   dragTargetResourceId: string | null = null;
@@ -730,6 +749,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   }
 
   ngOnChanges(changes: SimpleChanges) {
+    if (changes['resources']) this.activeGroupFilter = null;
     if (changes['resources'] || changes['resourceOrder'] || changes['filterResourcesWithEvents']) this.flattenResources();
     if (changes['views'] && this.views?.length > 0 && !this.views.includes(this.currentView)) {
       this.currentView = this.views[0];
@@ -764,6 +784,31 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     return 'Week';
   }
 
+  // ===== GROUP FILTER =====
+  get resourceGroupOptions(): { value: string; label: string }[] {
+    if (this.resourceGroupField) {
+      const field = this.resourceGroupField;
+      const seen = new Map<string, string>();
+      for (const r of this.resources) {
+        const rows = r.children?.length ? r.children : [r];
+        for (const row of rows) {
+          const key = String(row.extendedProps?.[field] ?? r.extendedProps?.[field] ?? '(ungrouped)');
+          if (!seen.has(key)) seen.set(key, key);
+        }
+      }
+      return [...seen.entries()].map(([v, l]) => ({ value: v, label: l }));
+    }
+    return this.resources
+      .filter(r => r.children?.length)
+      .map(r => ({ value: r.id, label: r.title }));
+  }
+
+  onGroupFilterChange(value: string) {
+    this.activeGroupFilter = value || null;
+    this.flattenResources();
+    this.cdr.markForCheck();
+  }
+
   /** Exposed for template binding — today's date for the Today button disabled check. */
   readonly today_date = new Date();
 
@@ -784,6 +829,31 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     if (this.currentView === 'resourceTimelineWeek')  d.setDate(d.getDate() + dir * 7);
     if (this.currentView === 'resourceTimelineMonth') d.setMonth(d.getMonth() + dir);
     return this.isInValidRange(d);
+  }
+
+  get currentDateInput(): string {
+    const d = this.currentDate;
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+  get dateInputMin(): string {
+    return this.validRange?.start ? this.formatDateInput(new Date(this.validRange.start)) : '';
+  }
+  get dateInputMax(): string {
+    return this.validRange?.end ? this.formatDateInput(new Date(this.validRange.end)) : '';
+  }
+  private formatDateInput(d: Date): string {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+  goToDate(dateStr: string) {
+    if (!dateStr) return;
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return;
+    this.currentDate = this.clampToValidRange(d);
+    this.buildTimeline();
   }
 
   private clampToValidRange(date: Date): Date {
@@ -857,8 +927,12 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
           original: { id: '__grplabel__' + groupValue, title: groupValue }
         });
         for (const r of members) {
-          this.flatResources.push({ id: r.id, title: r.title, level: 1, isGroup: false, expanded: true, extendedProps: r.extendedProps, original: r });
+          this.flatResources.push({ id: r.id, title: r.title, level: 1, isGroup: false, expanded: true, extendedProps: r.extendedProps, original: r, groupLabelValue: groupValue });
         }
+      }
+      // Apply group filter for resourceGroupField mode
+      if (this.activeGroupFilter !== null) {
+        this.flatResources = this.flatResources.filter(r => r.groupLabelValue === this.activeGroupFilter);
       }
       return;
     }
@@ -894,6 +968,15 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
         if (r.isGroupLabel) return true; // keep group headers for now (pruned below)
         return eventIds.has(r.id);
       });
+    }
+
+    // --- Active group filter (hierarchical mode) ---
+    if (this.activeGroupFilter !== null) {
+      const group = this.resources.find(r => r.id === this.activeGroupFilter);
+      if (group) {
+        const keepIds = new Set([group.id, ...(group.children?.map(c => c.id) ?? [])]);
+        this.flatResources = this.flatResources.filter(r => keepIds.has(r.id));
+      }
     }
   }
 
