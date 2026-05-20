@@ -14,8 +14,8 @@ export class DsTimelineService {
     slotMaxTime = '24:00:00'
   ): TimelineResult {
     switch (view) {
-      case 'day':   return this.buildDay(date, slotDuration, slotMinWidth, slotMinTime, slotMaxTime);
-      case 'month': return this.buildMonth(date, slotMinWidth, containerWidth);
+      case 'resourceTimelineDay':   return this.buildDay(date, slotDuration, slotMinWidth, slotMinTime, slotMaxTime);
+      case 'resourceTimelineMonth': return this.buildMonth(date, slotMinWidth, containerWidth);
       default:                      return this.buildWeek(date, slotMinWidth, containerWidth);
     }
   }
@@ -62,28 +62,28 @@ export class DsTimelineService {
   }
 
   getViewStart(view: CalendarView, date: Date, slotMinTime = '00:00:00'): Date {
-    if (view === 'day') {
+    if (view === 'resourceTimelineDay') {
       const s = this.startOfDay(date);
       const minMs = this.parseTimeMs(slotMinTime);
       return new Date(s.getTime() + minMs);
     }
-    if (view === 'month') return this.startOfMonth(date);
+    if (view === 'resourceTimelineMonth') return this.startOfMonth(date);
     return this.startOfWeek(date);
   }
 
   getViewEnd(view: CalendarView, date: Date, slotMaxTime = '24:00:00'): Date {
-    if (view === 'day') {
+    if (view === 'resourceTimelineDay') {
       const s    = this.startOfDay(date);
       const maxMs = this.parseTimeMs(slotMaxTime);
       // '24:00:00' → midnight next day
       return new Date(s.getTime() + maxMs);
     }
-    if (view === 'month') { const e = this.endOfMonth(date); e.setDate(e.getDate() + 1); return e; }
+    if (view === 'resourceTimelineMonth') { const e = this.endOfMonth(date); e.setDate(e.getDate() + 1); return e; }
     return new Date(this.startOfWeek(date).getTime() + 7 * 86400000);
   }
 
   formatSlotLabel(date: Date, view: CalendarView, slotDuration: SlotDuration, timeFormat: '12h' | '24h' = '12h'): string {
-    if (view === 'day') {
+    if (view === 'resourceTimelineDay') {
       if (timeFormat === '24h') {
         const h = date.getHours();
         const m = date.getMinutes();
@@ -94,7 +94,7 @@ export class DsTimelineService {
       const p = date.getHours() >= 12 ? 'PM' : 'AM';
       return h + (m ? ':' + (m < 10 ? '0' + m : m) : '') + ' ' + p;
     }
-    if (view === 'week') {
+    if (view === 'resourceTimelineWeek') {
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       return days[date.getDay()] + ' ' + date.getDate();
     }
@@ -109,7 +109,7 @@ export class DsTimelineService {
 
   isToday(date: Date, view: CalendarView): boolean {
     const now = new Date();
-    if (view === 'day') return date.getHours() === now.getHours() && this.isSameDay(date, now);
+    if (view === 'resourceTimelineDay') return date.getHours() === now.getHours() && this.isSameDay(date, now);
     return this.isSameDay(date, now);
   }
 
