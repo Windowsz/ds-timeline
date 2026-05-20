@@ -144,7 +144,7 @@ export class AppComponent {
 |---|---|---|---|
 | `events` | `CalendarEvent[]` | `[]` | Array of events to display. |
 | `resources` | `CalendarResource[]` | `[]` | Array of resources (rows). Supports nested `children` for grouping. |
-| `initialView` | `CalendarView` | `'resourceTimelineWeek'` | The view to display on first render. |
+| `initialView` | `CalendarView` | `'resourceTimelineDay'` | The view to display on first render. |
 | `initialDate` | `Date \| null` | `null` | The date the calendar starts on. Defaults to today. |
 | `views` | `CalendarView[]` | all three | Views listed in the toolbar switcher. Pass a single-element array to lock to one view. |
 | `theme` | `'light' \| 'dark'` | `'light'` | Color theme. |

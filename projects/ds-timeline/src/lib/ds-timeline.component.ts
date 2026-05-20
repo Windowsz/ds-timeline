@@ -494,7 +494,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   // ===== INPUTS =====
   @Input() events: CalendarEvent[] = [];
   @Input() resources: CalendarResource[] = [];
-  @Input() initialView: CalendarView = 'resourceTimelineWeek';
+  @Input() initialView: CalendarView = 'resourceTimelineDay';
   @Input() initialDate: Date | null = null;
   /** Subset of views shown in the switcher. Pass a single-element array to lock to one view. */
   @Input() views: CalendarView[] = ['resourceTimelineDay', 'resourceTimelineWeek', 'resourceTimelineMonth'];
@@ -665,7 +665,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   @Output() resourceClick = new EventEmitter<ResourceClickArg>();
 
   // ===== STATE =====
-  currentView: CalendarView = 'resourceTimelineWeek';
+  currentView: CalendarView = 'resourceTimelineDay';
   currentDate: Date = new Date();
   currentTitle = '';
   slots: Date[] = [];
