@@ -1,7 +1,4 @@
-export type CalendarView =
-  | 'resourceTimelineDay'
-  | 'resourceTimelineWeek'
-  | 'resourceTimelineMonth';
+export type CalendarView = 'day' | 'week' | 'month';
 
 export type SlotDuration =
   | '00:15:00'

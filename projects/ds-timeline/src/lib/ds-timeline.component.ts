@@ -190,7 +190,7 @@ export interface HoverTooltip {
                     </ng-container>
                     <ng-template #defaultEvtContent>
                       <span class="ntc-evt-title">{{ evt.title }}</span>
-                      <span class="ntc-evt-time" *ngIf="currentView === 'resourceTimelineDay'">
+                      <span class="ntc-evt-time" *ngIf="currentView === 'day'">
                         {{ formatEventTime(evt) }}
                       </span>
                     </ng-template>
@@ -494,10 +494,10 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   // ===== INPUTS =====
   @Input() events: CalendarEvent[] = [];
   @Input() resources: CalendarResource[] = [];
-  @Input() initialView: CalendarView = 'resourceTimelineDay';
+  @Input() initialView: CalendarView = 'day';
   @Input() initialDate: Date | null = null;
   /** Subset of views shown in the switcher. Pass a single-element array to lock to one view. */
-  @Input() views: CalendarView[] = ['resourceTimelineDay', 'resourceTimelineWeek', 'resourceTimelineMonth'];
+  @Input() views: CalendarView[] = ['day', 'week', 'month'];
   @Input() theme: 'light' | 'dark' = 'light';
   @Input() slotMinWidth = 60;
   @Input() slotDuration: SlotDuration = '01:00:00';
@@ -665,7 +665,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   @Output() resourceClick = new EventEmitter<ResourceClickArg>();
 
   // ===== STATE =====
-  currentView: CalendarView = 'resourceTimelineDay';
+  currentView: CalendarView = 'day';
   currentDate: Date = new Date();
   currentTitle = '';
   slots: Date[] = [];
@@ -779,8 +779,8 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
 
   // ===== VIEW LABEL =====
   viewLabel(v: CalendarView): string {
-    if (v === 'resourceTimelineDay')   return 'Day';
-    if (v === 'resourceTimelineMonth') return 'Month';
+    if (v === 'day')   return 'Day';
+    if (v === 'month') return 'Month';
     return 'Week';
   }
 
@@ -825,9 +825,9 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   /** Returns false when navigating in `dir` direction would exit the validRange. */
   canNavigate(dir: number): boolean {
     const d = new Date(this.currentDate);
-    if (this.currentView === 'resourceTimelineDay')   d.setDate(d.getDate() + dir);
-    if (this.currentView === 'resourceTimelineWeek')  d.setDate(d.getDate() + dir * 7);
-    if (this.currentView === 'resourceTimelineMonth') d.setMonth(d.getMonth() + dir);
+    if (this.currentView === 'day')   d.setDate(d.getDate() + dir);
+    if (this.currentView === 'week')  d.setDate(d.getDate() + dir * 7);
+    if (this.currentView === 'month') d.setMonth(d.getMonth() + dir);
     return this.isInValidRange(d);
   }
 
@@ -871,9 +871,9 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
 
   navigate(dir: number) {
     const d = new Date(this.currentDate);
-    if (this.currentView === 'resourceTimelineDay')   d.setDate(d.getDate() + dir);
-    if (this.currentView === 'resourceTimelineWeek')  d.setDate(d.getDate() + dir * 7);
-    if (this.currentView === 'resourceTimelineMonth') d.setMonth(d.getMonth() + dir);
+    if (this.currentView === 'day')   d.setDate(d.getDate() + dir);
+    if (this.currentView === 'week')  d.setDate(d.getDate() + dir * 7);
+    if (this.currentView === 'month') d.setMonth(d.getMonth() + dir);
     if (!this.isInValidRange(d)) return; // block navigation outside validRange
     this.currentDate = d; this.buildTimeline();
   }
@@ -991,7 +991,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   // ===== SLOT LABEL INTERVAL =====
   /** Returns false when the slot should be silent (tick only, no label text). */
   showSlotLabel(slot: Date): boolean {
-    if (!this.slotLabelInterval || this.currentView !== 'resourceTimelineDay') return true;
+    if (!this.slotLabelInterval || this.currentView !== 'day') return true;
     const parts = this.slotLabelInterval.split(':').map(Number);
     const intervalMins = (parts[0] || 0) * 60 + (parts[1] || 0);
     if (intervalMins <= 0) return true;
@@ -1205,7 +1205,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
       const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
       return days[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1);
     };
-    if (this.currentView === 'resourceTimelineDay') return fmtTime(start) + ' \u2013 ' + fmtTime(end);
+    if (this.currentView === 'day') return fmtTime(start) + ' \u2013 ' + fmtTime(end);
     return fmtDate(start) + ' \u2013 ' + fmtDate(end);
   }
 
@@ -1604,7 +1604,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     if (this.selectSnap === 'free') {
       return new Date(s.getTime() + Math.min(rawMs, totalMs));
     }
-    if (this.currentView === 'resourceTimelineDay') {
+    if (this.currentView === 'day') {
       const slotMs  = this.svc.slotMs(this.slotDuration);
       const snapped = Math.round(rawMs / slotMs) * slotMs;
       return new Date(s.getTime() + Math.min(snapped, totalMs));
@@ -1691,7 +1691,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     if (!this.timelineEl) return;
     const [h, m] = (t || '00:00').split(':').map(Number);
     const targetMs = (h * 60 + m) * 60000;
-    if (this.currentView === 'resourceTimelineDay') {
+    if (this.currentView === 'day') {
       const minMs   = this.svc.parseTimeMs(this.slotMinTime);
       const maxMs   = this.svc.parseTimeMs(this.slotMaxTime);
       const rangeMs = Math.max(1, maxMs - minMs);

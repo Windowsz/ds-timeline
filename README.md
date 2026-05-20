@@ -144,7 +144,7 @@ export class AppComponent {
 |---|---|---|---|
 | `events` | `CalendarEvent[]` | `[]` | Array of events to display. |
 | `resources` | `CalendarResource[]` | `[]` | Array of resources (rows). Supports nested `children` for grouping. |
-| `initialView` | `CalendarView` | `'resourceTimelineDay'` | The view to display on first render. |
+| `initialView` | `CalendarView` | `'day'` | The view to display on first render. |
 | `initialDate` | `Date \| null` | `null` | The date the calendar starts on. Defaults to today. |
 | `views` | `CalendarView[]` | all three | Views listed in the toolbar switcher. Pass a single-element array to lock to one view. |
 | `theme` | `'light' \| 'dark'` | `'light'` | Color theme. |
@@ -194,11 +194,11 @@ export class AppComponent {
 
 ```html
 <!-- Show only the Week view — switcher is hidden automatically -->
-<ds-timeline [views]="['resourceTimelineWeek']">
+<ds-timeline [views]="['week']">
 
 <!-- Restrict Day view to business hours -->
 <ds-timeline
-  [views]="['resourceTimelineDay']"
+  [views]="['day']"
   slotMinTime="08:00:00"
   slotMaxTime="18:00:00"
   scrollTime="08:00:00"
@@ -352,9 +352,9 @@ const resources: CalendarResource[] = [
 
 ```typescript
 type CalendarView =
-  | 'resourceTimelineDay'    // Single day; columns are time slots
-  | 'resourceTimelineWeek'   // 7-day week (Sun–Sat); columns are days
-  | 'resourceTimelineMonth'; // Full calendar month; columns are days
+  | 'day'    // Single day; columns are time slots
+  | 'week'   // 7-day week (Sun–Sat); columns are days
+  | 'month'; // Full calendar month; columns are days
 ```
 
 ---
@@ -502,7 +502,7 @@ Obtain a reference to the component with `@ViewChild`, then call these methods p
 ```typescript
 this.cal.today();
 this.cal.next();
-this.cal.changeView('resourceTimelineDay');
+this.cal.changeView('day');
 this.cal.scrollToTime('09:00');
 ```
 
@@ -525,7 +525,7 @@ ds-timeline is designed so that the same event and resource objects you pass to 
 |---|---|---|
 | `events` | `[events]` | ✅ full |
 | `resources` | `[resources]` | ✅ full |
-| `initialView` | `[initialView]` | ✅ full (same strings) |
+| `initialView` | `[initialView]` | ⚠️ partial (uses `'day'\|'week'\|'month'` instead of FC's `'resourceTimelineDay'` etc.) |
 | `initialDate` | `[initialDate]` | ✅ full |
 | `editable` | `[editable]` | ✅ full |
 | `selectable` | `[selectable]` | ✅ full |
