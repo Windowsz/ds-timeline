@@ -49,7 +49,7 @@ An Angular resource-timeline calendar component inspired by FullCalendar's Timel
 - **Date picker** — `<input type="date">` in the toolbar for jumping directly to any date; respects `validRange`; toggle with `showDatePicker`
 - **Group filter dropdown** — toolbar `<select>` to filter the resource list by group; works with both `resourceGroupField` and hierarchical (parent/children) modes; toggle with `showGroupFilter`
 - **Select snap** — `selectSnap` controls whether drag-to-select snaps to slot boundaries (`'slot'`) or follows the exact mouse position (`'free'`)
-- **Locale / i18n** — `locale` sets the BCP 47 language tag for all date/time labels (e.g. `'th-TH'`, `'de-DE'`)
+- **Locale / i18n** — `locale` sets the BCP 47 language tag (e.g. `'th-TH'`, `'de-DE'`, `'ar'`); 40+ built-in locales covering UI strings (Today, Week, Month, "+N more", "Release to confirm", etc.); `localeData` input for custom overrides; automatic RTL layout for Arabic, Hebrew, and Farsi
 - **First day of week** — `firstDay` controls which day starts the week (0=Sun, 1=Mon … 6=Sat); same as FullCalendar `firstDay`
 - **Hidden days** — `hiddenDays` removes specific weekdays from the grid (e.g. `[0, 6]` hides weekends)
 - **Week numbers** — `weekNumbers` displays ISO week numbers in the Week view title and Month view slot labels
@@ -195,6 +195,7 @@ export class AppComponent {
 | `selectConstraint` | `ConstraintInput \| null` | `null` | Restrict where drag-to-select is allowed. Same as FC `selectConstraint`. |
 | `droppable` | `boolean` | `false` | Accept HTML5 drag-and-drop from outside the calendar. Fires `drop` and `eventReceive`. Same as FC `droppable`. |
 | `timeZone` | `string` | `'local'` | IANA timezone for slot labels and event time display (e.g. `'America/New_York'`). Display-only; positioning uses the local system clock. Same as FC `timeZone` (partial). |
+| `localeData` | `Partial<DsLocale> \| null` | `null` | Override or extend built-in locale strings (buttonText, moreLinkText, allDayText, etc.). Takes precedence over the resolved locale table. Same as FullCalendar's locale object format. |
 
 ### FullCalendar-parity inputs
 
@@ -596,7 +597,8 @@ ds-timeline is designed so that the same event and resource objects you pass to 
 | `eventMaxStack` | `[eventMaxStack]` | ✅ full |
 | `slotLabelInterval` | `[slotLabelInterval]` | ✅ full |
 | `businessHours` | `[businessHours]` | ✅ full |
-| `locale` | `[locale]` | ✅ full |
+| `locale` | `[locale]` | ✅ full (40+ locales; full UI string i18n; RTL for ar/he/fa) |
+| `locale` (object) | `[localeData]` | ✅ full |
 | `firstDay` | `[firstDay]` | ✅ full |
 | `hiddenDays` | `[hiddenDays]` | ✅ full |
 | `weekNumbers` | `[weekNumbers]` | ⚠️ partial (Week view: in title; Month view: first-day-of-week label; no dedicated column) |

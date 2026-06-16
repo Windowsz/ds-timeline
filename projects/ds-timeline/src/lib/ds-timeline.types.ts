@@ -106,6 +106,8 @@ export interface BuildOptions {
   firstDay?: number;
   hiddenDays?: number[];
   weekNumbers?: boolean;
+  /** Prefix for week-number labels (from the resolved DsLocale). Default: 'W'. */
+  weekText?: string;
   /** IANA timezone string for slot label display (e.g. 'America/New_York'). 'local' = system default. */
   timeZone?: string;
 }

@@ -13,6 +13,7 @@ import {
   MoreLinkArg, ResourceAreaColumn, ConstraintInput, DropArg, EventReceiveArg
 } from './ds-timeline.types';
 import { DsTimelineService } from './ds-timeline.service';
+import { DsLocale, resolveLocale } from './ds-timeline.locales';
 
 export interface SelectionState {
   resourceId: string;
@@ -34,12 +35,12 @@ export interface HoverTooltip {
   standalone: false,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="ntc-wrap" [ngClass]="'ntc-theme-' + theme" #wrapEl [style.height]="wrapHeightStyle">
+    <div class="ntc-wrap" [ngClass]="'ntc-theme-' + theme" #wrapEl [style.height]="wrapHeightStyle" [attr.dir]="i18n.direction">
 
       <!-- TOOLBAR -->
       <div class="ntc-toolbar" *ngIf="showToolbar">
         <div class="ntc-toolbar-left">
-          <button class="ntc-btn ntc-btn-today" type="button" (click)="goToToday()" [disabled]="!isInValidRange(today_date)">Today</button>
+          <button class="ntc-btn ntc-btn-today" type="button" (click)="goToToday()" [disabled]="!isInValidRange(today_date)">{{ i18n.buttonText.today }}</button>
           <div class="ntc-nav-group">
             <button class="ntc-btn ntc-btn-nav" type="button" (click)="navigate(-1)" [disabled]="!canNavigate(-1)">&#8249;</button>
             <button class="ntc-btn ntc-btn-nav" type="button" (click)="navigate(1)"  [disabled]="!canNavigate(1)">&#8250;</button>
@@ -56,7 +57,7 @@ export interface HoverTooltip {
             class="ntc-group-filter"
             [value]="activeGroupFilter ?? ''"
             (change)="onGroupFilterChange($any($event.target).value)">
-            <option value="">All</option>
+            <option value="">{{ i18n.allFilter }}</option>
             <option *ngFor="let g of resourceGroupOptions" [value]="g.value">{{ g.label }}</option>
           </select>
           <div class="ntc-view-group" *ngIf="showViewSwitcher && views.length > 1">
@@ -126,7 +127,7 @@ export interface HoverTooltip {
                   'ntc-weekend': svc.isWeekend(slot),
                   'ntc-today-col': svc.isToday(slot, currentView),
                   'ntc-hdr-silent': !showSlotLabel(slot)
-                }">{{ showSlotLabel(slot) ? svc.formatSlotLabel(slot, currentView, slotDuration, timeFormat, locale, weekNumbers, firstDay, timeZone) : '' }}</div>
+                }">{{ showSlotLabel(slot) ? svc.formatSlotLabel(slot, currentView, slotDuration, timeFormat, locale, weekNumbers, firstDay, timeZone, i18n.weekText) : '' }}</div>
               <div class="ntc-hdr-cell ntc-hdr-filler"></div>
             </div>
           </div>
@@ -230,7 +231,7 @@ export interface HoverTooltip {
                 class="ntc-more-chip"
                 [style.top.px]="getMoreChipTop(res.id)"
                 (click)="onMoreChipClick($event, res)">
-                +{{ getHiddenEventsCount(res.id) }} more
+                {{ i18n.moreLinkText(getHiddenEventsCount(res.id)) }}
               </div>
 
               <!-- Now indicator -->
@@ -252,7 +253,7 @@ export interface HoverTooltip {
           <strong>{{ getSelLabel() }}</strong>
         </div>
         <div class="ntc-sel-tooltip-res" *ngIf="selResource">{{ selResource.title }}</div>
-        <div class="ntc-sel-tooltip-hint">Release to confirm</div>
+        <div class="ntc-sel-tooltip-hint">{{ i18n.releaseToConfirm }}</div>
       </div>
 
       <!-- ===== EVENT HOVER TOOLTIP ===== -->
@@ -273,7 +274,7 @@ export interface HoverTooltip {
           {{ hoverTooltip.event.extendedProps['description'] }}
         </div>
         <div class="ntc-evt-tooltip-mode" *ngIf="eventOverlap === 'single'">
-          <span class="ntc-evt-tooltip-badge">&#128274; Exclusive</span>
+          <span class="ntc-evt-tooltip-badge">&#128274; {{ i18n.exclusive }}</span>
         </div>
       </div>
     </div>
@@ -505,6 +506,16 @@ export interface HoverTooltip {
     .ntc-evt-tooltip-extra { color: #8892a4; font-style: italic; }
     .ntc-evt-tooltip-mode { margin-top: 6px; padding-top: 6px; border-top: 1px solid #2e3341; }
     .ntc-evt-tooltip-badge { font-size: 10px; background: rgba(255,71,87,0.18); color: #ff6b78; padding: 2px 8px; border-radius: 8px; font-weight: 700; }
+    /* RTL SUPPORT */
+    .ntc-wrap[dir="rtl"] .ntc-body { flex-direction: row-reverse; }
+    .ntc-wrap[dir="rtl"] .ntc-res-col { border-right: none; border-left: 2px solid var(--ntc-border); }
+    .ntc-wrap[dir="rtl"] .ntc-toolbar { flex-direction: row-reverse; }
+    .ntc-wrap[dir="rtl"] .ntc-toolbar-left  { flex-direction: row-reverse; }
+    .ntc-wrap[dir="rtl"] .ntc-toolbar-right { flex-direction: row-reverse; }
+    .ntc-wrap[dir="rtl"] .ntc-more-chip { left: auto; right: 4px; }
+    .ntc-wrap[dir="rtl"] .ntc-evt-inner { padding: 1px 7px 1px 18px; }
+    .ntc-wrap[dir="rtl"] .ntc-resize-end   { right: auto; left:  0; }
+    .ntc-wrap[dir="rtl"] .ntc-resize-start { left:  auto; right: 0; }
   `]
 })
 export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy, DoCheck {
@@ -748,6 +759,25 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
    * Same as FullCalendar timeZone (partial — display-only; full pipeline support is a future enhancement).
    */
   @Input() timeZone = 'local';
+  /**
+   * Override or extend built-in locale strings. Takes precedence over the resolved locale table.
+   * e.g. [localeData]="{ buttonText: { today: 'Heute' }, moreLinkText: n => n + ' Mehr' }"
+   * Same as FullCalendar's locale object format.
+   */
+  @Input() localeData: (Partial<Omit<DsLocale, 'buttonText' | 'moreLinkText'>> & { buttonText?: Partial<DsLocale['buttonText']>; moreLinkText?: (n: number) => string }) | null = null;
+
+  private _i18nCache: { locale: string; override: typeof this.localeData; result: DsLocale } | null = null;
+  /** Resolved locale strings — used throughout the template. */
+  get i18n(): DsLocale {
+    if (this._i18nCache &&
+        this._i18nCache.locale === this.locale &&
+        this._i18nCache.override === this.localeData) {
+      return this._i18nCache.result;
+    }
+    const result = resolveLocale(this.locale, this.localeData ?? undefined);
+    this._i18nCache = { locale: this.locale, override: this.localeData, result };
+    return result;
+  }
 
   // ===== OUTPUTS =====
   @Output() eventClick    = new EventEmitter<EventClickArg>();
@@ -868,7 +898,7 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     if (changes['slotDuration'] || changes['slotMinWidth'] || changes['initialView'] || changes['resources'] ||
         changes['resourceOrder'] || changes['filterResourcesWithEvents'] ||
         changes['locale'] || changes['firstDay'] || changes['hiddenDays'] || changes['weekNumbers'] ||
-        changes['timeZone']) this.buildTimeline();
+        changes['timeZone'] || changes['localeData']) { this._i18nCache = null; this.buildTimeline(); }
   }
 
   ngDoCheck() {
@@ -891,9 +921,9 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
 
   // ===== VIEW LABEL =====
   viewLabel(v: CalendarView): string {
-    if (v === 'resourceTimelineDay')   return 'Day';
-    if (v === 'resourceTimelineMonth') return 'Month';
-    return 'Week';
+    if (v === 'resourceTimelineDay')   return this.i18n.buttonText.day;
+    if (v === 'resourceTimelineMonth') return this.i18n.buttonText.month;
+    return this.i18n.buttonText.week;
   }
 
   // ===== GROUP FILTER =====
@@ -1005,7 +1035,8 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
       slotDuration: this.slotDuration, slotMinWidth: this.slotMinWidth,
       containerWidth, slotMinTime: this.slotMinTime, slotMaxTime: this.slotMaxTime,
       locale: this.locale, firstDay: this.firstDay,
-      hiddenDays: this.hiddenDays, weekNumbers: this.weekNumbers, timeZone: this.timeZone
+      hiddenDays: this.hiddenDays, weekNumbers: this.weekNumbers, timeZone: this.timeZone,
+      weekText: this.i18n.weekText
     });
     this._expandedEventsCache = null; // invalidate on each navigation/rebuild
     this.slots = r.slots; this.headerTier1 = r.tier1;

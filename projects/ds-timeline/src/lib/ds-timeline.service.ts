@@ -8,12 +8,13 @@ export class DsTimelineService {
     const {
       view, date, slotDuration, slotMinWidth,
       containerWidth = 0, slotMinTime = '00:00:00', slotMaxTime = '24:00:00',
-      locale = 'en-US', firstDay = 0, hiddenDays = [], weekNumbers = false
+      locale = 'en-US', firstDay = 0, hiddenDays = [], weekNumbers = false,
+      weekText = 'W'
     } = opts;
     switch (view) {
       case 'resourceTimelineDay':   return this.buildDay(date, slotDuration, slotMinWidth, slotMinTime, slotMaxTime, locale);
-      case 'resourceTimelineMonth': return this.buildMonth(date, slotMinWidth, containerWidth, locale, hiddenDays, weekNumbers, firstDay);
-      default:                      return this.buildWeek(date, slotMinWidth, containerWidth, locale, firstDay, hiddenDays, weekNumbers);
+      case 'resourceTimelineMonth': return this.buildMonth(date, slotMinWidth, containerWidth, locale, hiddenDays, weekNumbers, firstDay, weekText);
+      default:                      return this.buildWeek(date, slotMinWidth, containerWidth, locale, firstDay, hiddenDays, weekNumbers, weekText);
     }
   }
 
@@ -31,7 +32,7 @@ export class DsTimelineService {
     return { slots, tier1, slotWidth, totalWidth: slots.length * slotWidth, title: tier1[0].label };
   }
 
-  private buildWeek(date: Date, slotMinWidth: number, containerWidth: number, locale: string, firstDay: number, hiddenDays: number[], weekNumbers: boolean): TimelineResult {
+  private buildWeek(date: Date, slotMinWidth: number, containerWidth: number, locale: string, firstDay: number, hiddenDays: number[], weekNumbers: boolean, weekText = 'W'): TimelineResult {
     const ws = this.startOfWeek(date, firstDay);
     const allSlots: Date[] = [];
     for (let d = 0; d < 7; d++) allSlots.push(new Date(ws.getTime() + d * 86400000));
@@ -46,12 +47,12 @@ export class DsTimelineService {
     const visStart = slots[0];
     const visEnd   = slots[count - 1];
     let title = this.shortDate(visStart, locale) + ' – ' + this.shortDate(visEnd, locale);
-    if (weekNumbers) title = 'W' + this.getWeekNumber(ws) + ': ' + title;
+    if (weekNumbers) title = weekText + this.getWeekNumber(ws) + ': ' + title;
     const tier1: HeaderTier[] = [{ label: visStart.toLocaleDateString(locale, { month: 'long', year: 'numeric' }), width: count * slotWidth }];
     return { slots, tier1, slotWidth, totalWidth: count * slotWidth, title };
   }
 
-  private buildMonth(date: Date, slotMinWidth: number, containerWidth: number, locale: string, hiddenDays: number[], weekNumbers: boolean, firstDay: number): TimelineResult {
+  private buildMonth(date: Date, slotMinWidth: number, containerWidth: number, locale: string, hiddenDays: number[], weekNumbers: boolean, firstDay: number, weekText = 'W'): TimelineResult {
     const ms = this.startOfMonth(date);
     const me = this.endOfMonth(date);
     const allSlots: Date[] = [];
@@ -86,7 +87,7 @@ export class DsTimelineService {
     return new Date(this.startOfWeek(date, firstDay).getTime() + 7 * 86400000);
   }
 
-  formatSlotLabel(date: Date, view: CalendarView, slotDuration: SlotDuration, timeFormat: '12h' | '24h' = '12h', locale = 'en-US', weekNumbers = false, firstDay = 0, timeZone = 'local'): string {
+  formatSlotLabel(date: Date, view: CalendarView, slotDuration: SlotDuration, timeFormat: '12h' | '24h' = '12h', locale = 'en-US', weekNumbers = false, firstDay = 0, timeZone = 'local', weekText = 'W'): string {
     if (view === 'resourceTimelineDay') {
       if (timeZone && timeZone !== 'local') {
         try {
@@ -113,7 +114,7 @@ export class DsTimelineService {
     }
     // Month view: show week number prefix on first day of each week
     if (weekNumbers && date.getDay() === firstDay) {
-      return 'W' + this.getWeekNumber(date) + ' ' + date.getDate();
+      return weekText + this.getWeekNumber(date) + ' ' + date.getDate();
     }
     return '' + date.getDate();
   }
