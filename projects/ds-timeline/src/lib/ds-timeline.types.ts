@@ -41,6 +41,17 @@ export interface CalendarEvent {
   durationEditable?: boolean;
   resourceEditable?: boolean;  // allow moving to a different resource
   extendedProps?: { [key: string]: any };
+  // ── Simple recurrence (FC-compatible, same as FullCalendar simple-recurrence) ──
+  /** Days of the week to repeat on: 0=Sun … 6=Sat. Turns the event into a recurring template. */
+  daysOfWeek?: number[];
+  /** Earliest date (inclusive) that recurring instances may start. */
+  startRecur?: Date | string;
+  /** Latest date (exclusive) for recurring instances. */
+  endRecur?: Date | string;
+  /** Clock start of each occurrence e.g. '09:00'. Only used when daysOfWeek is set. */
+  startTime?: string;
+  /** Clock end of each occurrence e.g. '10:00'. Only used when daysOfWeek is set. */
+  endTime?: string;
 }
 
 export interface CalendarResource {
@@ -95,6 +106,8 @@ export interface BuildOptions {
   firstDay?: number;
   hiddenDays?: number[];
   weekNumbers?: boolean;
+  /** IANA timezone string for slot label display (e.g. 'America/New_York'). 'local' = system default. */
+  timeZone?: string;
 }
 
 export interface DragState {

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { CalendarView, SlotDuration, TimelineResult, HeaderTier, BuildOptions } from './ds-timeline.types';
+import { CalendarView, SlotDuration, TimelineResult, HeaderTier, BuildOptions, CalendarEvent } from './ds-timeline.types';
 
 @Injectable({ providedIn: 'root' })
 export class DsTimelineService {
@@ -86,8 +86,18 @@ export class DsTimelineService {
     return new Date(this.startOfWeek(date, firstDay).getTime() + 7 * 86400000);
   }
 
-  formatSlotLabel(date: Date, view: CalendarView, slotDuration: SlotDuration, timeFormat: '12h' | '24h' = '12h', locale = 'en-US', weekNumbers = false, firstDay = 0): string {
+  formatSlotLabel(date: Date, view: CalendarView, slotDuration: SlotDuration, timeFormat: '12h' | '24h' = '12h', locale = 'en-US', weekNumbers = false, firstDay = 0, timeZone = 'local'): string {
     if (view === 'resourceTimelineDay') {
+      if (timeZone && timeZone !== 'local') {
+        try {
+          return new Intl.DateTimeFormat(locale, {
+            timeZone,
+            hour: 'numeric',
+            minute: date.getMinutes() ? '2-digit' : undefined,
+            hour12: timeFormat === '12h'
+          }).format(date);
+        } catch { /* fall through to default */ }
+      }
       if (timeFormat === '24h') {
         const h = date.getHours();
         const m = date.getMinutes();
@@ -106,6 +116,65 @@ export class DsTimelineService {
       return 'W' + this.getWeekNumber(date) + ' ' + date.getDate();
     }
     return '' + date.getDate();
+  }
+
+  /**
+   * Expand events with daysOfWeek recurrence into concrete instances for the given view window.
+   * Non-recurring events are returned as-is. Instances are non-editable and have id suffixed
+   * with '_rec_YYYY-MM-DD' to avoid collisions with the template event.
+   */
+  expandRecurringEvents(events: CalendarEvent[], viewStart: Date, viewEnd: Date): CalendarEvent[] {
+    const result: CalendarEvent[] = [];
+    for (const evt of events) {
+      if (!evt.daysOfWeek || evt.daysOfWeek.length === 0) {
+        result.push(evt);
+        continue;
+      }
+      const recStart = evt.startRecur ? new Date(evt.startRecur) : viewStart;
+      const recEnd   = evt.endRecur   ? new Date(evt.endRecur)   : viewEnd;
+      const winStart = new Date(Math.max(recStart.getTime(), viewStart.getTime()));
+      const winEnd   = new Date(Math.min(recEnd.getTime(),   viewEnd.getTime()));
+      const cur      = this.startOfDay(winStart);
+      while (cur.getTime() < winEnd.getTime()) {
+        if (evt.daysOfWeek.includes(cur.getDay())) {
+          const sMs = evt.startTime ? this.parseTimeMs(evt.startTime.includes(':') ? evt.startTime + (evt.startTime.split(':').length < 3 ? ':00' : '') : '00:00:00') : 0;
+          const eMs = evt.endTime   ? this.parseTimeMs(evt.endTime.includes(':')   ? evt.endTime   + (evt.endTime.split(':').length   < 3 ? ':00' : '') : '01:00:00') : sMs + 3600000;
+          result.push({
+            ...evt,
+            id:       evt.id + '_rec_' + cur.toISOString().slice(0, 10),
+            start:    new Date(cur.getTime() + sMs),
+            end:      new Date(cur.getTime() + eMs),
+            editable: false,
+            startEditable: false,
+            durationEditable: false
+          });
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Convert a UTC-based Date to a fake "local" Date whose Y/M/D/H/M/S values equal
+   * what that instant looks like in the given IANA timezone. Useful for display-only
+   * timezone support: position calculations can use the result directly with local arithmetic.
+   * Returns the original Date when timeZone is falsy or 'local'.
+   */
+  toTimezoneDate(date: Date, timeZone: string): Date {
+    if (!timeZone || timeZone === 'local') return new Date(date);
+    try {
+      const fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+      });
+      const parts = fmt.formatToParts(date);
+      const get   = (t: string) => parseInt(parts.find(p => p.type === t)?.value || '0');
+      const h     = get('hour');
+      return new Date(get('year'), get('month') - 1, get('day'), h >= 24 ? 0 : h, get('minute'), get('second'));
+    } catch { return new Date(date); }
   }
 
   isWeekend(date: Date): boolean { const d = date.getDay(); return d === 0 || d === 6; }

@@ -126,7 +126,7 @@ export interface HoverTooltip {
                   'ntc-weekend': svc.isWeekend(slot),
                   'ntc-today-col': svc.isToday(slot, currentView),
                   'ntc-hdr-silent': !showSlotLabel(slot)
-                }">{{ showSlotLabel(slot) ? svc.formatSlotLabel(slot, currentView, slotDuration, timeFormat, locale, weekNumbers, firstDay) : '' }}</div>
+                }">{{ showSlotLabel(slot) ? svc.formatSlotLabel(slot, currentView, slotDuration, timeFormat, locale, weekNumbers, firstDay, timeZone) : '' }}</div>
               <div class="ntc-hdr-cell ntc-hdr-filler"></div>
             </div>
           </div>
@@ -182,7 +182,8 @@ export interface HoverTooltip {
                     'ntc-evt-blocked': isBlocked(evt, res.id),
                     'ntc-evt-bg': evt.display === 'background',
                     'ntc-evt-inv-bg': evt.display === 'inverse-background',
-                    'ntc-evt-hidden': evt.display === 'none'
+                    'ntc-evt-hidden': evt.display === 'none',
+                    'ntc-evt-allday': !!evt.allDay
                   }"
                   [style.left.px]="getEventLeft(evt)"
                   [style.width.px]="getEventWidth(evt)"
@@ -204,7 +205,7 @@ export interface HoverTooltip {
                     </ng-container>
                     <ng-template #defaultEvtContent>
                       <span class="ntc-evt-title">{{ evt.title }}</span>
-                      <span class="ntc-evt-time" *ngIf="currentView === 'resourceTimelineDay'">
+                      <span class="ntc-evt-time" *ngIf="currentView === 'resourceTimelineDay' && !evt.allDay">
                         {{ formatEventTime(evt) }}
                       </span>
                     </ng-template>
@@ -413,6 +414,8 @@ export interface HoverTooltip {
     /* RESOURCE AREA MULTI-COLUMN */
     .ntc-res-col-cell { flex-shrink: 0; padding: 0 10px; font-size: 13px; display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-right: 1px solid var(--ntc-border-lt); box-sizing: border-box; min-width: 0; }
     .ntc-res-col-header-cell { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ntc-muted); }
+    /* ALL-DAY EVENTS (Phase 4a) */
+    .ntc-evt-allday { border-style: dashed !important; opacity: 0.88; }
     /* SILENT SLOT (slotLabelInterval) */
     .ntc-hdr-silent { color: transparent; border-right-color: var(--ntc-border-lt); }
     /* RESOURCE GROUP LABEL ROW (resourceGroupField) */
@@ -737,6 +740,15 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
    */
   @Input() droppable = false;
 
+  // ===== PHASE 4c: TIMEZONE =====
+  /**
+   * IANA timezone string for displaying slot labels and event times (e.g. 'America/New_York', 'Asia/Tokyo').
+   * Positioning remains based on the local JS Date; only display labels are affected.
+   * Use 'local' (default) to keep the system timezone.
+   * Same as FullCalendar timeZone (partial — display-only; full pipeline support is a future enhancement).
+   */
+  @Input() timeZone = 'local';
+
   // ===== OUTPUTS =====
   @Output() eventClick    = new EventEmitter<EventClickArg>();
   @Output() eventChange   = new EventEmitter<EventChangeArg>();
@@ -776,6 +788,8 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
 
   // external drop visual state
   externalDragOverResourceId: string | null = null;
+  // Phase 4b: recurring events expansion cache
+  private _expandedEventsCache: { eventsRef: CalendarEvent[]; vsMs: number; veMs: number; result: CalendarEvent[] } | null = null;
 
   // drag-to-select
   selState: SelectionState | null = null;
@@ -853,7 +867,8 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     if (changes['initialView'] && !changes['initialView'].firstChange) this.currentView = this.initialView;
     if (changes['slotDuration'] || changes['slotMinWidth'] || changes['initialView'] || changes['resources'] ||
         changes['resourceOrder'] || changes['filterResourcesWithEvents'] ||
-        changes['locale'] || changes['firstDay'] || changes['hiddenDays'] || changes['weekNumbers']) this.buildTimeline();
+        changes['locale'] || changes['firstDay'] || changes['hiddenDays'] || changes['weekNumbers'] ||
+        changes['timeZone']) this.buildTimeline();
   }
 
   ngDoCheck() {
@@ -990,8 +1005,9 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
       slotDuration: this.slotDuration, slotMinWidth: this.slotMinWidth,
       containerWidth, slotMinTime: this.slotMinTime, slotMaxTime: this.slotMaxTime,
       locale: this.locale, firstDay: this.firstDay,
-      hiddenDays: this.hiddenDays, weekNumbers: this.weekNumbers
+      hiddenDays: this.hiddenDays, weekNumbers: this.weekNumbers, timeZone: this.timeZone
     });
+    this._expandedEventsCache = null; // invalidate on each navigation/rebuild
     this.slots = r.slots; this.headerTier1 = r.tier1;
     this.slotWidth = r.slotWidth; this.totalWidth = r.totalWidth; this.currentTitle = r.title;
     // compute visible slot range for accurate event positioning when hiddenDays is active
@@ -1228,34 +1244,62 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     return !this.isBusinessHour(slot);
   }
 
+  // ===== PHASE 4b: RECURRING EVENTS CACHE =====
+  private getExpandedEvents(): CalendarEvent[] {
+    const vs = this.getViewStart().getTime();
+    const ve = this.getViewEnd().getTime();
+    if (this._expandedEventsCache &&
+        this._expandedEventsCache.eventsRef === this.events &&
+        this._expandedEventsCache.vsMs === vs &&
+        this._expandedEventsCache.veMs === ve) {
+      return this._expandedEventsCache.result;
+    }
+    const result = this.svc.expandRecurringEvents(this.events, new Date(vs), new Date(ve));
+    this._expandedEventsCache = { eventsRef: this.events, vsMs: vs, veMs: ve, result };
+    return result;
+  }
+
   // ===== EVENTS =====
   getResourceEvents(resourceId: string): CalendarEvent[] {
     const vs = this.getViewStart().getTime();
     const ve = this.getViewEnd().getTime();
-    return this.events.filter(e => {
+    return this.getExpandedEvents().filter(e => {
       // must belong to this resource
       const inResource = e.resourceId === resourceId || (e.resourceIds && e.resourceIds.indexOf(resourceId) > -1);
       if (!inResource) return false;
       // must overlap the current view range (start < viewEnd AND end > viewStart)
       const es = new Date(e.start).getTime();
-      const ee = e.end ? new Date(e.end).getTime() : es + 3600000;
+      const ee = e.end ? new Date(e.end).getTime() : (e.allDay ? es + 86400000 : es + 3600000);
       return es < ve && ee > vs;
     });
   }
 
   getEventLeft(evt: CalendarEvent): number {
+    // Phase 4a: allDay events in day view always start at position 0
+    if (evt.allDay && this.currentView === 'resourceTimelineDay') return 0;
     const vs = this.getViewStart(), ve = this.getViewEnd(), t = ve.getTime() - vs.getTime();
     if (t <= 0) return 0;
-    return (Math.max(0, new Date(evt.start).getTime() - vs.getTime()) / t) * this.totalWidth;
+    // Phase 4a: allDay events in week/month view are pinned to start of their day
+    let start = new Date(evt.start);
+    if (evt.allDay) start = this.svc.startOfDay(start);
+    return (Math.max(0, start.getTime() - vs.getTime()) / t) * this.totalWidth;
   }
 
   getEventWidth(evt: CalendarEvent): number {
+    // Phase 4a: allDay events in day view span the entire view width
+    if (evt.allDay && this.currentView === 'resourceTimelineDay') return this.totalWidth;
     const vs = this.getViewStart(), ve = this.getViewEnd();
-    const es = new Date(evt.start), ee = evt.end ? new Date(evt.end) : new Date(es.getTime() + 3600000);
+    let es = new Date(evt.start);
+    let ee = evt.end ? new Date(evt.end) : new Date(es.getTime() + 3600000);
+    if (evt.allDay) {
+      // Phase 4a: allDay in week/month — snap to day boundaries
+      es = this.svc.startOfDay(es);
+      ee = this.svc.startOfDay(new Date(ee));
+      if (ee.getTime() <= es.getTime()) ee = new Date(es.getTime() + 86400000);
+    }
     const t = ve.getTime() - vs.getTime();
     if (t <= 0) return 4;
-    // clamp end to view end
-    const clampedEnd = Math.min(ee.getTime(), ve.getTime());
+    const clampedEnd   = Math.min(ee.getTime(), ve.getTime());
     const clampedStart = Math.max(es.getTime(), vs.getTime());
     return Math.max(4, (clampedEnd - clampedStart) / t * this.totalWidth);
   }
@@ -1265,11 +1309,17 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   /**
    * In 'single' mode: stack overlapping events vertically (each gets narrower height).
    * In 'multiple' mode: all events sit at the same top (they visually overlap).
+   * Phase 4a: allDay events in day view stack in their own band at the top of the row.
    */
   getEventTopStacked(evt: CalendarEvent, resourceId: string, eventIndex: number): number {
+    if (evt.allDay && this.currentView === 'resourceTimelineDay') {
+      // Stack allDay events from the top (each in its own lane)
+      const allDayEvts = this.getResourceEvents(resourceId).filter(e => !!e.allDay);
+      const lane = allDayEvts.findIndex(e => e.id === evt.id);
+      return Math.max(0, lane) * (this.eventHeight + 2) + 2;
+    }
     if (this.eventOverlap === 'multiple') return this.getEventTop();
     const siblings = this.getResourceEvents(resourceId);
-    // find how many events overlap with this one that come before it in the list
     const evtStart = new Date(evt.start).getTime();
     const evtEnd   = evt.end ? new Date(evt.end).getTime() : evtStart + 3600000;
     let lane = 0;
@@ -1861,6 +1911,16 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   // ===== FORMAT =====
   formatEventTime(evt: CalendarEvent): string {
     const s = new Date(evt.start), e = evt.end ? new Date(evt.end) : null;
+    // Phase 4c: use Intl for timezone-aware display
+    if (this.timeZone && this.timeZone !== 'local') {
+      try {
+        const intlFmt = new Intl.DateTimeFormat(this.locale, {
+          timeZone: this.timeZone,
+          hour: 'numeric', minute: 'numeric', hour12: this.timeFormat === '12h'
+        });
+        return e ? intlFmt.format(s) + ' \u2013 ' + intlFmt.format(e) : intlFmt.format(s);
+      } catch { /* fall through */ }
+    }
     const fmt = (d: Date) => {
       if (this.timeFormat === '24h') {
         const h = d.getHours(), m = d.getMinutes();

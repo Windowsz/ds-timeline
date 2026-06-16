@@ -58,6 +58,9 @@ An Angular resource-timeline calendar component inspired by FullCalendar's Timel
 - **Multi-column resource area** — `resourceAreaColumns` renders multiple columns in the resource panel with custom field mapping
 - **Drag/select constraints** — `eventConstraint` and `selectConstraint` restrict where events can be moved/selected
 - **External drag-drop** — `droppable` accepts HTML5 drag-and-drop from outside the calendar; fires `drop` and `eventReceive`
+- **All-day events** — events with `allDay: true` span the full day column in Day view and are date-boundary-snapped in Week/Month view; rendered with a distinct dashed style
+- **Recurring events** — FC-compatible simple recurrence via `daysOfWeek`, `startRecur`, `endRecur`, `startTime`, `endTime` on CalendarEvent; instances are auto-expanded per view window
+- **Timezone display** — `timeZone` input (IANA string) formats slot labels and event times in the specified timezone; positioning is UTC-offset-aware
 - **Business hours** — `businessHours` shades non-business-hour slots in Day view
 - **Event display modes** — `display: 'background'` renders translucent full-row highlight; `'none'` hides the event
 - **Event URL** — `url` on an event opens the URL in a new tab on click
@@ -191,6 +194,7 @@ export class AppComponent {
 | `eventConstraint` | `ConstraintInput \| null` | `null` | Restrict where events can be dragged/resized to. `'businessHours'` reuses the `businessHours` setting. Same as FC `eventConstraint`. |
 | `selectConstraint` | `ConstraintInput \| null` | `null` | Restrict where drag-to-select is allowed. Same as FC `selectConstraint`. |
 | `droppable` | `boolean` | `false` | Accept HTML5 drag-and-drop from outside the calendar. Fires `drop` and `eventReceive`. Same as FC `droppable`. |
+| `timeZone` | `string` | `'local'` | IANA timezone for slot labels and event time display (e.g. `'America/New_York'`). Display-only; positioning uses the local system clock. Same as FC `timeZone` (partial). |
 
 ### FullCalendar-parity inputs
 
@@ -276,6 +280,12 @@ interface CalendarEvent {
   durationEditable?: boolean;             // false → end-edge resize handle hidden
   resourceEditable?: boolean;             // false → event cannot be moved to a different resource
   extendedProps?: { [key: string]: any }; // Custom metadata (e.g. description, priority)
+  // Simple recurrence (FC-compatible):
+  daysOfWeek?: number[];       // Repeat on these weekdays: 0=Sun…6=Sat
+  startRecur?: Date | string;  // Earliest date (inclusive) for instances
+  endRecur?: Date | string;    // Latest date (exclusive) for instances
+  startTime?: string;          // 'HH:MM' start time for each occurrence
+  endTime?: string;            // 'HH:MM' end time for each occurrence
 }
 ```
 
@@ -598,6 +608,7 @@ ds-timeline is designed so that the same event and resource objects you pass to 
 | `eventConstraint` | `[eventConstraint]` | ✅ full |
 | `selectConstraint` | `[selectConstraint]` | ✅ full |
 | `droppable` | `[droppable]` | ✅ full |
+| `timeZone` | `[timeZone]` | ⚠️ partial (display labels only; full pipeline offset is a future enhancement) |
 | `nowIndicator` | `[showNowIndicator]` | ⚠️ partial (different input name) |
 | `themeSystem` | `[theme]` | ⚠️ partial (`'light'\|'dark'` instead of `'standard'\|'bootstrap'`) |
 | `eventClick(info)` | `(eventClick)` | ✅ full |

@@ -288,6 +288,12 @@ export const OPTION_MAP: OptionMapping[] = [
   { fcOption: 'moreLinkClick',                 dsInput: '(moreLinkClick)',                 notes: '{ resource, hiddenEvents, jsEvent }. Fires on "+N more" chip click.', compatible: 'full' },
   { fcOption: 'drop',                          dsInput: '(drop)',                          notes: '{ date, resource, jsEvent }. Fires on external drag-drop.', compatible: 'full' },
   { fcOption: 'eventReceive',                  dsInput: '(eventReceive)',                  notes: '{ event, revert }. Fires when external event JSON is received.', compatible: 'full' },
+  { fcOption: 'timeZone',                      dsInput: '[timeZone]',                      notes: "IANA string. Labels use Intl for display. Full pipeline support is future work.", compatible: 'partial' },
+  // Phase 4a: allDay events
+  { fcOption: 'event.allDay',                  dsInput: 'CalendarEvent.allDay',            notes: 'Day view: spans full width. Week/Month: snapped to day boundaries. Dashed style.', compatible: 'full' },
+  // Phase 4b: recurring events
+  { fcOption: 'event.daysOfWeek + startTime/endTime', dsInput: 'CalendarEvent.daysOfWeek + startTime/endTime', notes: 'FC simple recurrence. Instances auto-expanded per view window. Non-draggable.', compatible: 'full' },
+  { fcOption: 'event.startRecur / endRecur',   dsInput: 'CalendarEvent.startRecur / endRecur', notes: 'Bounds the recurrence window. Same semantics as FC.', compatible: 'full' },
   // Per-event fields
   { fcOption: 'event.url',                     dsInput: 'CalendarEvent.url',               notes: 'Opens URL in new tab on click.', compatible: 'full' },
   { fcOption: 'event.display',                 dsInput: 'CalendarEvent.display',           notes: "'background'/'none' supported.", compatible: 'partial' },
