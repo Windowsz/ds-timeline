@@ -53,6 +53,11 @@ An Angular resource-timeline calendar component inspired by FullCalendar's Timel
 - **First day of week** — `firstDay` controls which day starts the week (0=Sun, 1=Mon … 6=Sat); same as FullCalendar `firstDay`
 - **Hidden days** — `hiddenDays` removes specific weekdays from the grid (e.g. `[0, 6]` hides weekends)
 - **Week numbers** — `weekNumbers` displays ISO week numbers in the Week view title and Month view slot labels
+- **Height control** — `height`, `contentHeight`, and `aspectRatio` inputs control the component dimensions
+- **More-link click** — `moreLinkClick` output fires when the "+N more" chip is clicked; receives hidden events list
+- **Multi-column resource area** — `resourceAreaColumns` renders multiple columns in the resource panel with custom field mapping
+- **Drag/select constraints** — `eventConstraint` and `selectConstraint` restrict where events can be moved/selected
+- **External drag-drop** — `droppable` accepts HTML5 drag-and-drop from outside the calendar; fires `drop` and `eventReceive`
 - **Business hours** — `businessHours` shades non-business-hour slots in Day view
 - **Event display modes** — `display: 'background'` renders translucent full-row highlight; `'none'` hides the event
 - **Event URL** — `url` on an event opens the URL in a new tab on click
@@ -179,6 +184,13 @@ export class AppComponent {
 | `tooltipDelay` | `number` | `300` | Delay in ms before the hover tooltip appears. |
 | `eventOverlap` | `'multiple' \| 'single'` | `'multiple'` | Overlap mode. See [Overlap Modes](#overlap-modes). |
 | `allowResourceDrag` | `boolean` | `true` | When `true`, vertical drag moves event to a different resource. |
+| `height` | `number \| string \| null` | `null` | Fixed height of the component (`600`, `'80vh'`). Defaults to filling the container (`height: 100%`). Same as FC `height`. |
+| `contentHeight` | `number \| string \| null` | `null` | Fixed height of the body area only (excludes toolbar). Same as FC `contentHeight`. |
+| `aspectRatio` | `number \| null` | `null` | Compute height as `width / aspectRatio`. Applied when `height` is null. Same as FC `aspectRatio`. |
+| `resourceAreaColumns` | `ResourceAreaColumn[] \| null` | `null` | Define multiple columns in the resource area. Each specifies `field`, `headerContent`, and optional `width`. Same as FC `resourceAreaColumns`. |
+| `eventConstraint` | `ConstraintInput \| null` | `null` | Restrict where events can be dragged/resized to. `'businessHours'` reuses the `businessHours` setting. Same as FC `eventConstraint`. |
+| `selectConstraint` | `ConstraintInput \| null` | `null` | Restrict where drag-to-select is allowed. Same as FC `selectConstraint`. |
+| `droppable` | `boolean` | `false` | Accept HTML5 drag-and-drop from outside the calendar. Fires `drop` and `eventReceive`. Same as FC `droppable`. |
 
 ### FullCalendar-parity inputs
 
@@ -231,6 +243,9 @@ export class AppComponent {
 | `viewChange` | `{ view, start, end }` | User switches between Day / Week / Month views. |
 | `datesSet` | `DatesSetArg` | Fires on initial render and on every date range change. |
 | `resourceClick` | `ResourceClickArg` | User clicks a row in the resource column. |
+| `moreLinkClick` | `MoreLinkArg` | User clicks the "+N more" chip (requires `eventMaxStack`). |
+| `drop` | `DropArg` | An external draggable was dropped onto the grid (requires `droppable`). |
+| `eventReceive` | `EventReceiveArg` | An external event JSON was received and added to the calendar. |
 
 > **Note:** `eventDrop` and `eventResize` fire *in addition to* `eventChange`. Use `eventChange` for a unified handler, or the specific outputs for FullCalendar parity.
 
@@ -462,6 +477,25 @@ interface ResourceClickArg {
   resource: CalendarResource; // The resource that was clicked
   jsEvent: MouseEvent;
 }
+
+// Phase 2b: moreLinkClick
+interface MoreLinkArg {
+  resource: CalendarResource;    // The resource row the chip appeared in
+  hiddenEvents: CalendarEvent[];  // Events not visible due to eventMaxStack
+  jsEvent: MouseEvent;
+}
+
+// Phase 3b: external drop
+interface DropArg {
+  date: Date;                    // Date/time where the item was dropped
+  resource?: CalendarResource;   // Resource row it was dropped on
+  jsEvent: DragEvent;
+}
+
+interface EventReceiveArg {
+  event: CalendarEvent;  // The newly created event (parsed from dataTransfer JSON)
+  revert: () => void;    // Call to remove the event if unwanted
+}
 ```
 
 **Handling drag and resize separately (FC-style):**
@@ -556,7 +590,14 @@ ds-timeline is designed so that the same event and resource objects you pass to 
 | `firstDay` | `[firstDay]` | ✅ full |
 | `hiddenDays` | `[hiddenDays]` | ✅ full |
 | `weekNumbers` | `[weekNumbers]` | ⚠️ partial (Week view: in title; Month view: first-day-of-week label; no dedicated column) |
+| `height` | `[height]` | ✅ full |
+| `contentHeight` | `[contentHeight]` | ✅ full |
+| `aspectRatio` | `[aspectRatio]` | ✅ full |
 | `resourceAreaWidth` | `[resourceAreaWidth]` | ⚠️ partial (FC accepts `"200px"` string; ds accepts number) |
+| `resourceAreaColumns` | `[resourceAreaColumns]` | ✅ full |
+| `eventConstraint` | `[eventConstraint]` | ✅ full |
+| `selectConstraint` | `[selectConstraint]` | ✅ full |
+| `droppable` | `[droppable]` | ✅ full |
 | `nowIndicator` | `[showNowIndicator]` | ⚠️ partial (different input name) |
 | `themeSystem` | `[theme]` | ⚠️ partial (`'light'\|'dark'` instead of `'standard'\|'bootstrap'`) |
 | `eventClick(info)` | `(eventClick)` | ✅ full |
@@ -566,6 +607,9 @@ ds-timeline is designed so that the same event and resource objects you pass to 
 | `select(info)` | `(select)` | ✅ full |
 | `datesSet(info)` | `(datesSet)` | ✅ full |
 | `dateClick(info)` | `(dateClick)` | ✅ full |
+| `moreLinkClick(info)` | `(moreLinkClick)` | ✅ full |
+| `drop(info)` | `(drop)` | ✅ full |
+| `eventReceive(info)` | `(eventReceive)` | ✅ full |
 | `event.url` | `CalendarEvent.url` | ✅ full |
 | `event.display` | `CalendarEvent.display` | ⚠️ partial (`background`/`none` supported) |
 | `event.resourceEditable` | `CalendarEvent.resourceEditable` | ✅ full |

@@ -174,3 +174,43 @@ export interface EventContentArg {
   /** The current view type. */
   view: CalendarView;
 }
+
+/** Emitted when the "+N more" chip is clicked (FC: moreLinkClick). */
+export interface MoreLinkArg {
+  resource: CalendarResource;
+  hiddenEvents: CalendarEvent[];
+  jsEvent: MouseEvent;
+}
+
+/** Single column definition for resourceAreaColumns. */
+export interface ResourceAreaColumn {
+  /** The field to read from resource.extendedProps (or 'title' for the resource title). */
+  field: string;
+  /** Text shown in the column header. */
+  headerContent: string;
+  /** Column width in px. Default: 120. */
+  width?: number;
+}
+
+/**
+ * Constraint that limits when drag/select is allowed.
+ * 'businessHours' — reuse the current businessHours setting.
+ * Object form — { start?, end?, daysOfWeek? }.
+ * Same as FullCalendar eventConstraint / selectConstraint.
+ */
+export type ConstraintInput =
+  | 'businessHours'
+  | { start?: string; end?: string; daysOfWeek?: number[] };
+
+/** Emitted when an external item is dropped onto the grid (FC: drop). */
+export interface DropArg {
+  date: Date;
+  resource?: CalendarResource;
+  jsEvent: DragEvent;
+}
+
+/** Emitted when an external event is received and added to the calendar (FC: eventReceive). */
+export interface EventReceiveArg {
+  event: CalendarEvent;
+  revert: () => void;
+}

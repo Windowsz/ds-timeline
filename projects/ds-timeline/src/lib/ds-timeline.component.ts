@@ -9,7 +9,8 @@ import {
   FlatResource, HeaderTier, SlotDuration,
   DragState, ResizeState, BusinessHours, ValidRange,
   EventClickArg, EventChangeArg, EventDropArg, EventResizeArg,
-  DateClickArg, SelectArg, DatesSetArg, ResourceClickArg, EventContentArg
+  DateClickArg, SelectArg, DatesSetArg, ResourceClickArg, EventContentArg,
+  MoreLinkArg, ResourceAreaColumn, ConstraintInput, DropArg, EventReceiveArg
 } from './ds-timeline.types';
 import { DsTimelineService } from './ds-timeline.service';
 
@@ -33,7 +34,7 @@ export interface HoverTooltip {
   standalone: false,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="ntc-wrap" [ngClass]="'ntc-theme-' + theme" #wrapEl>
+    <div class="ntc-wrap" [ngClass]="'ntc-theme-' + theme" #wrapEl [style.height]="wrapHeightStyle">
 
       <!-- TOOLBAR -->
       <div class="ntc-toolbar" *ngIf="showToolbar">
@@ -68,12 +69,18 @@ export interface HoverTooltip {
       </div>
 
       <!-- BODY -->
-      <div class="ntc-body">
+      <div class="ntc-body" [style.height]="bodyHeightStyle">
 
         <!-- Resource column -->
         <div class="ntc-res-col" [style.width]="resourceAreaWidthCss" (wheel)="onResColWheel($event)" (touchstart)="onResColTouchStart($event)" (touchmove)="onResColTouchMove($event)">
           <div class="ntc-res-header" [style.height.px]="headerHeight">
-            <span class="ntc-res-header-text">{{ resourceAreaHeaderContent }}</span>
+            <ng-container *ngIf="resourceAreaColumns; else singleResHeader">
+              <div *ngFor="let col of resourceAreaColumns" class="ntc-res-col-cell ntc-res-col-header-cell"
+                [style.width.px]="col.width || 120">{{ col.headerContent }}</div>
+            </ng-container>
+            <ng-template #singleResHeader>
+              <span class="ntc-res-header-text">{{ resourceAreaHeaderContent }}</span>
+            </ng-template>
           </div>
           <div class="ntc-res-rows" #resRows>
             <div *ngFor="let res of flatResources"
@@ -87,12 +94,16 @@ export interface HoverTooltip {
               (click)="res.isGroupLabel ? null : onResourceClick($event, res)">
               <button *ngIf="res.isGroup" class="ntc-expand-btn" type="button"
                 (click)="$event.stopPropagation(); toggleResource(res)">{{ res.expanded ? '&#9660;' : '&#9658;' }}</button>
-              <div class="ntc-res-info">
+              <div class="ntc-res-info" *ngIf="!resourceAreaColumns">
                 <span class="ntc-res-name">{{ res.title }}</span>
                 <span class="ntc-res-sub" *ngIf="!res.isGroupLabel && res.extendedProps && res.extendedProps['subtitle']">
                   {{ res.extendedProps['subtitle'] }}
                 </span>
               </div>
+              <ng-container *ngIf="resourceAreaColumns">
+                <div *ngFor="let col of resourceAreaColumns" class="ntc-res-col-cell"
+                  [style.width.px]="col.width || 120">{{ getResColValue(res, col) }}</div>
+              </ng-container>
             </div>
           </div>
         </div>
@@ -128,12 +139,15 @@ export interface HoverTooltip {
                 'ntc-grid-group':      res.isGroup,
                 'ntc-grid-group-label': res.isGroupLabel,
                 'ntc-row-selecting':   selState && selState.resourceId === res.id,
-                'ntc-row-drag-over':   dragState && dragTargetResourceId === res.id && dragState.sourceResourceId !== res.id
+                'ntc-row-drag-over':   (dragState && dragTargetResourceId === res.id && dragState.sourceResourceId !== res.id) || externalDragOverResourceId === res.id
               }"
               [style.height.px]="res.isGroupLabel ? 28 : getEffectiveRowHeight()"
               [style.cursor]="(selectable && !res.isGroup && !res.isGroupLabel) ? 'crosshair' : 'default'"
               (mousedown)="res.isGroupLabel ? null : onGridMouseDown($event, res)"
-              (touchstart)="res.isGroupLabel ? null : onGridTouchStart($event, res)">
+              (touchstart)="res.isGroupLabel ? null : onGridTouchStart($event, res)"
+              (dragover)="droppable ? onGridDragOver($event, res) : null"
+              (drop)="droppable ? onGridDrop($event, res) : null"
+              (dragleave)="droppable ? onGridDragLeave($event) : null">
 
               <!-- Slot background columns -->
               <div class="ntc-bg-cols">
@@ -213,7 +227,8 @@ export interface HoverTooltip {
               <!-- +N more chip (eventMaxStack) -->
               <div *ngIf="!res.isGroupLabel && getHiddenEventsCount(res.id) > 0"
                 class="ntc-more-chip"
-                [style.top.px]="getMoreChipTop(res.id)">
+                [style.top.px]="getMoreChipTop(res.id)"
+                (click)="onMoreChipClick($event, res)">
                 +{{ getHiddenEventsCount(res.id) }} more
               </div>
 
@@ -393,7 +408,11 @@ export interface HoverTooltip {
     .ntc-evt-time   { font-size: 10px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1; }
     .ntc-evt-custom { display: block; width: 100%; height: 100%; overflow: hidden; }
     /* +N MORE CHIP */
-    .ntc-more-chip { position: absolute; left: 4px; font-size: 10px; font-weight: 700; color: var(--ntc-primary); background: rgba(61,145,255,0.12); border: 1px solid rgba(61,145,255,0.3); border-radius: 8px; padding: 1px 7px; pointer-events: none; white-space: nowrap; z-index: 3; }
+    .ntc-more-chip { position: absolute; left: 4px; font-size: 10px; font-weight: 700; color: var(--ntc-primary); background: rgba(61,145,255,0.12); border: 1px solid rgba(61,145,255,0.3); border-radius: 8px; padding: 1px 7px; cursor: pointer; white-space: nowrap; z-index: 3; }
+    .ntc-more-chip:hover { background: rgba(61,145,255,0.22); }
+    /* RESOURCE AREA MULTI-COLUMN */
+    .ntc-res-col-cell { flex-shrink: 0; padding: 0 10px; font-size: 13px; display: flex; align-items: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-right: 1px solid var(--ntc-border-lt); box-sizing: border-box; min-width: 0; }
+    .ntc-res-col-header-cell { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ntc-muted); }
     /* SILENT SLOT (slotLabelInterval) */
     .ntc-hdr-silent { color: transparent; border-right-color: var(--ntc-border-lt); }
     /* RESOURCE GROUP LABEL ROW (resourceGroupField) */
@@ -658,6 +677,66 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
    */
   @Input() validRange: ValidRange | null = null;
 
+  // ===== PHASE 2a: HEIGHT / ASPECT RATIO =====
+  /**
+   * Fixed height of the entire component. Accepts a number (px) or CSS string ('600px', '80vh').
+   * Same as FullCalendar height. Default: null (inherits from container via height: 100%).
+   */
+  @Input() height: number | string | null = null;
+  /**
+   * Fixed height of the body area (excludes toolbar). Accepts a number (px) or CSS string.
+   * Same as FullCalendar contentHeight. Default: null.
+   */
+  @Input() contentHeight: number | string | null = null;
+  /**
+   * Aspect ratio (width / height). When set, the component height is computed as width / aspectRatio.
+   * Only applied when height is null. Same as FullCalendar aspectRatio. Default: null.
+   */
+  @Input() aspectRatio: number | null = null;
+
+  get wrapHeightStyle(): string | null {
+    if (this.height !== null) return typeof this.height === 'number' ? this.height + 'px' : this.height as string;
+    if (this.aspectRatio !== null && this.wrapEl) {
+      const w = this.wrapEl.nativeElement.clientWidth;
+      return w > 0 ? Math.round(w / this.aspectRatio) + 'px' : null;
+    }
+    return null;
+  }
+  get bodyHeightStyle(): string | null {
+    if (this.contentHeight === null) return null;
+    return typeof this.contentHeight === 'number' ? this.contentHeight + 'px' : this.contentHeight as string;
+  }
+
+  // ===== PHASE 2c: RESOURCE AREA COLUMNS =====
+  /**
+   * Define multiple columns in the resource area.
+   * Each column specifies a field to read from resource.extendedProps (or 'title').
+   * When set, overrides resourceAreaHeaderContent and the default single-column layout.
+   * Same as FullCalendar resourceAreaColumns. Default: null (single column).
+   */
+  @Input() resourceAreaColumns: ResourceAreaColumn[] | null = null;
+
+  // ===== PHASE 3a: CONSTRAINTS =====
+  /**
+   * Limits the time range / days that events can be dragged/resized into.
+   * 'businessHours' reuses the businessHours setting. Object form: { start?, end?, daysOfWeek? }.
+   * Same as FullCalendar eventConstraint. Default: null (no constraint).
+   */
+  @Input() eventConstraint: ConstraintInput | null = null;
+  /**
+   * Limits the time range / days that drag-to-select is allowed.
+   * 'businessHours' reuses the businessHours setting. Object form: { start?, end?, daysOfWeek? }.
+   * Same as FullCalendar selectConstraint. Default: null (no constraint).
+   */
+  @Input() selectConstraint: ConstraintInput | null = null;
+
+  // ===== PHASE 3b: EXTERNAL DRAG-DROP =====
+  /**
+   * When true, the grid rows accept HTML5 drag-and-drop from outside the calendar.
+   * Same as FullCalendar droppable. Default: false.
+   */
+  @Input() droppable = false;
+
   // ===== OUTPUTS =====
   @Output() eventClick    = new EventEmitter<EventClickArg>();
   @Output() eventChange   = new EventEmitter<EventChangeArg>();
@@ -671,6 +750,12 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   @Output() viewChange    = new EventEmitter<{ view: CalendarView; start: Date; end: Date }>();
   @Output() datesSet      = new EventEmitter<DatesSetArg>();
   @Output() resourceClick = new EventEmitter<ResourceClickArg>();
+  /** Fired when the "+N more" chip is clicked (FC: moreLinkClick). */
+  @Output() moreLinkClick = new EventEmitter<MoreLinkArg>();
+  /** Fired when an external draggable is dropped onto the grid (FC: drop). */
+  @Output() drop          = new EventEmitter<DropArg>();
+  /** Fired when an external event JSON is received and added to the calendar (FC: eventReceive). */
+  @Output() eventReceive  = new EventEmitter<EventReceiveArg>();
 
   // ===== STATE =====
   currentView: CalendarView = 'resourceTimelineDay';
@@ -688,6 +773,9 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   resizeState: ResizeState | null = null;
   nowVisible = false;
   nowLeft = 0;
+
+  // external drop visual state
+  externalDragOverResourceId: string | null = null;
 
   // drag-to-select
   selState: SelectionState | null = null;
@@ -1042,6 +1130,81 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
       return this.getEventTop() + this.eventMaxStack * (this.eventHeight + 2);
     }
     return this.getEventTop() + this.eventHeight + 4;
+  }
+
+  // ===== PHASE 2b: MORE LINK CLICK =====
+  onMoreChipClick(jsEvent: MouseEvent, res: FlatResource) {
+    jsEvent.stopPropagation();
+    const all = this.getResourceEvents(res.id);
+    const hiddenEvents = all.slice(this.eventMaxStack ?? all.length);
+    this.moreLinkClick.emit({ resource: res.original, hiddenEvents, jsEvent });
+  }
+
+  // ===== PHASE 2c: RESOURCE AREA COLUMNS =====
+  getResColValue(res: FlatResource, col: ResourceAreaColumn): string {
+    if (col.field === 'title') return res.title;
+    return String(res.extendedProps?.[col.field] ?? '');
+  }
+
+  // ===== PHASE 3a: CONSTRAINT HELPER =====
+  private withinConstraint(start: Date, end: Date, constraint: ConstraintInput): boolean {
+    if (constraint === 'businessHours') {
+      const bh = this.businessHours === true
+        ? { startTime: '09:00:00', endTime: '17:00:00', daysOfWeek: [1,2,3,4,5] }
+        : (this.businessHours || { startTime: '09:00:00', endTime: '17:00:00', daysOfWeek: [1,2,3,4,5] });
+      if (typeof bh === 'boolean') return true;
+      const bhObj = bh as { startTime: string; endTime: string; daysOfWeek?: number[] };
+      const dow = bhObj.daysOfWeek ?? [1,2,3,4,5];
+      if (!dow.includes(start.getDay())) return false;
+      const cStartMs = this.svc.parseTimeMs(bhObj.startTime || '09:00:00');
+      const cEndMs   = this.svc.parseTimeMs(bhObj.endTime   || '17:00:00');
+      const sMs = (start.getHours() * 3600 + start.getMinutes() * 60) * 1000;
+      const eMs = (end.getHours()   * 3600 + end.getMinutes()   * 60) * 1000;
+      return sMs >= cStartMs && eMs <= cEndMs;
+    }
+    const c = constraint as { start?: string; end?: string; daysOfWeek?: number[] };
+    if (c.daysOfWeek && !c.daysOfWeek.includes(start.getDay())) return false;
+    if (c.start && start < new Date(c.start)) return false;
+    if (c.end   && end   > new Date(c.end))   return false;
+    return true;
+  }
+
+  // ===== PHASE 3b: EXTERNAL DRAG-DROP =====
+  onGridDragOver(e: DragEvent, res: FlatResource) {
+    if (!this.droppable || res.isGroup || res.isGroupLabel) return;
+    e.preventDefault();
+    if (this.externalDragOverResourceId !== res.id) {
+      this.externalDragOverResourceId = res.id;
+      this.cdr.markForCheck();
+    }
+  }
+
+  onGridDragLeave(_e: DragEvent) {
+    if (!this.droppable) return;
+    this.externalDragOverResourceId = null;
+    this.cdr.markForCheck();
+  }
+
+  onGridDrop(e: DragEvent, res: FlatResource) {
+    if (!this.droppable || res.isGroup || res.isGroupLabel) return;
+    e.preventDefault();
+    this.externalDragOverResourceId = null;
+    const x    = this.gridXFromClient(e.clientX);
+    const date = this.dateFromX(x);
+    this.drop.emit({ date, resource: res.original, jsEvent: e });
+    const raw = e.dataTransfer?.getData('application/json') || e.dataTransfer?.getData('text/plain') || '';
+    if (raw) {
+      try {
+        const evtData = JSON.parse(raw) as CalendarEvent;
+        if (evtData && evtData.id && evtData.title) {
+          const newEvt: CalendarEvent = { ...evtData, start: date, resourceId: res.id };
+          this.events = this.events.concat([newEvt]);
+          const revert = () => { this.events = this.events.filter(ev => ev.id !== newEvt.id); this.cdr.markForCheck(); };
+          this.eventReceive.emit({ event: newEvt, revert });
+        }
+      } catch { /* not JSON — ignore */ }
+    }
+    this.cdr.markForCheck();
   }
 
   // ===== BUSINESS HOURS =====
@@ -1489,6 +1652,11 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
           if (wouldOverlap) { this.cdr.markForCheck(); return; }
         }
 
+        if (this.eventConstraint) {
+          const ns2 = new Date(newStartMs);
+          if (!this.withinConstraint(ns2, new Date(newStartMs + dur), this.eventConstraint)) { this.cdr.markForCheck(); return; }
+        }
+
         const ns = new Date(newStartMs);
         this.events = this.events.slice();
         this.events[idx] = Object.assign({}, this.events[idx], {
@@ -1529,10 +1697,18 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
         this.events = this.events.slice();
         if (this.resizeState.handle === 'end') {
           const ne = Math.min(viewEnd.getTime(), oe + deltaMs);
-          if (ne - os >= 900000) this.events[idx] = Object.assign({}, this.events[idx], { end: new Date(ne) });
+          if (ne - os >= 900000) {
+            if (!this.eventConstraint || this.withinConstraint(new Date(os), new Date(ne), this.eventConstraint)) {
+              this.events[idx] = Object.assign({}, this.events[idx], { end: new Date(ne) });
+            }
+          }
         } else {
           const ns = Math.max(viewStart.getTime(), os + deltaMs);
-          if (oe - ns >= 900000) this.events[idx] = Object.assign({}, this.events[idx], { start: new Date(ns) });
+          if (oe - ns >= 900000) {
+            if (!this.eventConstraint || this.withinConstraint(new Date(ns), new Date(oe), this.eventConstraint)) {
+              this.events[idx] = Object.assign({}, this.events[idx], { start: new Date(ns) });
+            }
+          }
         }
         this.cdr.markForCheck();
       }
@@ -1558,7 +1734,9 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
       if (moved && state) {
         const [s, en] = this.normalizedSelFrom(state);
         if (en.getTime() - s.getTime() >= this.selectMinDuration) {
-          this.select.emit({ start: s, end: en, resource });
+          if (!this.selectConstraint || this.withinConstraint(s, en, this.selectConstraint)) {
+            this.select.emit({ start: s, end: en, resource });
+          }
         }
       } else if (!moved && state && jsEvent) {
         this.dateClick.emit({ date: state.startDate, resource, jsEvent });
