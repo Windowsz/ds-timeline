@@ -83,6 +83,20 @@ export interface TimelineResult {
   title: string;
 }
 
+export interface BuildOptions {
+  view: CalendarView;
+  date: Date;
+  slotDuration: SlotDuration;
+  slotMinWidth: number;
+  containerWidth?: number;
+  slotMinTime?: string;
+  slotMaxTime?: string;
+  locale?: string;
+  firstDay?: number;
+  hiddenDays?: number[];
+  weekNumbers?: boolean;
+}
+
 export interface DragState {
   eventId: string;
   originalEvent: CalendarEvent;

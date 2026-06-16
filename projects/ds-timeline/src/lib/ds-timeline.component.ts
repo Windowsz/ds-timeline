@@ -115,7 +115,7 @@ export interface HoverTooltip {
                   'ntc-weekend': svc.isWeekend(slot),
                   'ntc-today-col': svc.isToday(slot, currentView),
                   'ntc-hdr-silent': !showSlotLabel(slot)
-                }">{{ showSlotLabel(slot) ? svc.formatSlotLabel(slot, currentView, slotDuration, timeFormat) : '' }}</div>
+                }">{{ showSlotLabel(slot) ? svc.formatSlotLabel(slot, currentView, slotDuration, timeFormat, locale, weekNumbers, firstDay) : '' }}</div>
               <div class="ntc-hdr-cell ntc-hdr-filler"></div>
             </div>
           </div>
@@ -499,6 +499,14 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   /** Subset of views shown in the switcher. Pass a single-element array to lock to one view. */
   @Input() views: CalendarView[] = ['resourceTimelineDay', 'resourceTimelineWeek', 'resourceTimelineMonth'];
   @Input() theme: 'light' | 'dark' = 'light';
+  /** BCP 47 locale tag for date/time formatting (e.g. 'en-US', 'th-TH', 'de-DE'). Same as FullCalendar locale. Default: 'en-US'. */
+  @Input() locale = 'en-US';
+  /** First day of the week: 0=Sunday, 1=Monday … 6=Saturday. Same as FullCalendar firstDay. Default: 0 (Sunday). */
+  @Input() firstDay = 0;
+  /** Days of the week to hide (0=Sun … 6=Sat). e.g. [0, 6] hides weekends. Same as FullCalendar hiddenDays. Default: []. */
+  @Input() hiddenDays: number[] = [];
+  /** Show ISO week numbers. Week view: shown in title. Month view: shown on first day of each week. Same as FullCalendar weekNumbers. Default: false. */
+  @Input() weekNumbers = false;
   @Input() slotMinWidth = 60;
   @Input() slotDuration: SlotDuration = '01:00:00';
   /** '12h' = AM/PM labels (default), '24h' = 00:00–23:00 labels */
@@ -756,7 +764,8 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     }
     if (changes['initialView'] && !changes['initialView'].firstChange) this.currentView = this.initialView;
     if (changes['slotDuration'] || changes['slotMinWidth'] || changes['initialView'] || changes['resources'] ||
-        changes['resourceOrder'] || changes['filterResourcesWithEvents']) this.buildTimeline();
+        changes['resourceOrder'] || changes['filterResourcesWithEvents'] ||
+        changes['locale'] || changes['firstDay'] || changes['hiddenDays'] || changes['weekNumbers']) this.buildTimeline();
   }
 
   ngDoCheck() {
@@ -883,11 +892,28 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
     this.viewChange.emit({ view, start: this.getViewStart(), end: this.getViewEnd() });
   }
 
+  private _visViewStart: Date | null = null;
+  private _visViewEnd: Date | null = null;
+
   buildTimeline(resetScroll = true) {
     const containerWidth = this.timelineEl?.nativeElement?.clientWidth || 0;
-    const r = this.svc.buildTimeline(this.currentView, this.currentDate, this.slotDuration, this.slotMinWidth, containerWidth, this.slotMinTime, this.slotMaxTime);
+    const r = this.svc.buildTimeline({
+      view: this.currentView, date: this.currentDate,
+      slotDuration: this.slotDuration, slotMinWidth: this.slotMinWidth,
+      containerWidth, slotMinTime: this.slotMinTime, slotMaxTime: this.slotMaxTime,
+      locale: this.locale, firstDay: this.firstDay,
+      hiddenDays: this.hiddenDays, weekNumbers: this.weekNumbers
+    });
     this.slots = r.slots; this.headerTier1 = r.tier1;
     this.slotWidth = r.slotWidth; this.totalWidth = r.totalWidth; this.currentTitle = r.title;
+    // compute visible slot range for accurate event positioning when hiddenDays is active
+    if (this.slots.length > 0 && this.currentView !== 'resourceTimelineDay') {
+      const first = this.slots[0], last = this.slots[this.slots.length - 1];
+      this._visViewStart = new Date(first.getFullYear(), first.getMonth(), first.getDate());
+      this._visViewEnd   = new Date(last.getFullYear(),  last.getMonth(),  last.getDate() + 1);
+    } else {
+      this._visViewStart = null; this._visViewEnd = null;
+    }
     this.updateNow(); this.cdr.markForCheck();
     this.datesSet.emit({ view: this.currentView, start: this.getViewStart(), end: this.getViewEnd(), title: this.currentTitle });
     // Auto-scroll: on navigation, respect scrollTimeReset; on first load always scroll
@@ -1651,8 +1677,8 @@ export class DsTimelineComponent implements OnInit, AfterViewInit, OnChanges, On
   }
 
   // ===== VIEW RANGE =====
-  getViewStart() { return this.svc.getViewStart(this.currentView, this.currentDate, this.slotMinTime); }
-  getViewEnd()   { return this.svc.getViewEnd(this.currentView, this.currentDate, this.slotMaxTime); }
+  getViewStart() { return this._visViewStart ?? this.svc.getViewStart(this.currentView, this.currentDate, this.slotMinTime, this.firstDay); }
+  getViewEnd()   { return this._visViewEnd   ?? this.svc.getViewEnd(this.currentView, this.currentDate, this.slotMaxTime, this.firstDay); }
 
   // ===== FORMAT =====
   formatEventTime(evt: CalendarEvent): string {

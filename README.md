@@ -49,6 +49,10 @@ An Angular resource-timeline calendar component inspired by FullCalendar's Timel
 - **Date picker** — `<input type="date">` in the toolbar for jumping directly to any date; respects `validRange`; toggle with `showDatePicker`
 - **Group filter dropdown** — toolbar `<select>` to filter the resource list by group; works with both `resourceGroupField` and hierarchical (parent/children) modes; toggle with `showGroupFilter`
 - **Select snap** — `selectSnap` controls whether drag-to-select snaps to slot boundaries (`'slot'`) or follows the exact mouse position (`'free'`)
+- **Locale / i18n** — `locale` sets the BCP 47 language tag for all date/time labels (e.g. `'th-TH'`, `'de-DE'`)
+- **First day of week** — `firstDay` controls which day starts the week (0=Sun, 1=Mon … 6=Sat); same as FullCalendar `firstDay`
+- **Hidden days** — `hiddenDays` removes specific weekdays from the grid (e.g. `[0, 6]` hides weekends)
+- **Week numbers** — `weekNumbers` displays ISO week numbers in the Week view title and Month view slot labels
 - **Business hours** — `businessHours` shades non-business-hour slots in Day view
 - **Event display modes** — `display: 'background'` renders translucent full-row highlight; `'none'` hides the event
 - **Event URL** — `url` on an event opens the URL in a new tab on click
@@ -148,6 +152,10 @@ export class AppComponent {
 | `initialDate` | `Date \| null` | `null` | The date the calendar starts on. Defaults to today. |
 | `views` | `CalendarView[]` | all three | Views listed in the toolbar switcher. Pass a single-element array to lock to one view. |
 | `theme` | `'light' \| 'dark'` | `'light'` | Color theme. |
+| `locale` | `string` | `'en-US'` | BCP 47 locale tag for date/time labels (e.g. `'th-TH'`, `'de-DE'`). Same as FullCalendar `locale`. |
+| `firstDay` | `number` | `0` | First day of the week: 0=Sunday, 1=Monday … 6=Saturday. Same as FullCalendar `firstDay`. |
+| `hiddenDays` | `number[]` | `[]` | Days of the week to hide (0=Sun … 6=Sat). e.g. `[0, 6]` hides weekends. Same as FullCalendar `hiddenDays`. |
+| `weekNumbers` | `boolean` | `false` | Show ISO week numbers. Week view: in title. Month view: on first day of each week. Same as FullCalendar `weekNumbers`. |
 | `slotMinWidth` | `number` | `60` | Minimum width in pixels of each time slot column. |
 | `slotDuration` | `SlotDuration` | `'01:00:00'` | Duration of each time slot (Day view granularity). |
 | `timeFormat` | `'12h' \| '24h'` | `'12h'` | Time label format in headers and event times. |
@@ -544,6 +552,10 @@ ds-timeline is designed so that the same event and resource objects you pass to 
 | `eventMaxStack` | `[eventMaxStack]` | ✅ full |
 | `slotLabelInterval` | `[slotLabelInterval]` | ✅ full |
 | `businessHours` | `[businessHours]` | ✅ full |
+| `locale` | `[locale]` | ✅ full |
+| `firstDay` | `[firstDay]` | ✅ full |
+| `hiddenDays` | `[hiddenDays]` | ✅ full |
+| `weekNumbers` | `[weekNumbers]` | ⚠️ partial (Week view: in title; Month view: first-day-of-week label; no dedicated column) |
 | `resourceAreaWidth` | `[resourceAreaWidth]` | ⚠️ partial (FC accepts `"200px"` string; ds accepts number) |
 | `nowIndicator` | `[showNowIndicator]` | ⚠️ partial (different input name) |
 | `themeSystem` | `[theme]` | ⚠️ partial (`'light'\|'dark'` instead of `'standard'\|'bootstrap'`) |

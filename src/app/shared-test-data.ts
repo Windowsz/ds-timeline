@@ -274,6 +274,10 @@ export const OPTION_MAP: OptionMapping[] = [
   { fcOption: 'eventMaxStack',                 dsInput: '[eventMaxStack]',                 notes: "Identical number. Extras become '+N more'.", compatible: 'full' },
   { fcOption: 'slotLabelInterval',             dsInput: '[slotLabelInterval]',             notes: 'Same string format.', compatible: 'full' },
   { fcOption: 'businessHours',                 dsInput: '[businessHours]',                 notes: 'boolean | {startTime, endTime, daysOfWeek}.', compatible: 'full' },
+  { fcOption: 'locale',                        dsInput: '[locale]',                        notes: "BCP 47 tag (e.g. 'th-TH'). All date/time labels use this locale.", compatible: 'full' },
+  { fcOption: 'firstDay',                      dsInput: '[firstDay]',                      notes: '0=Sun, 1=Mon … 6=Sat. Same semantics as FC.', compatible: 'full' },
+  { fcOption: 'hiddenDays',                    dsInput: '[hiddenDays]',                    notes: 'Array of day-of-week numbers to hide (0=Sun).', compatible: 'full' },
+  { fcOption: 'weekNumbers',                   dsInput: '[weekNumbers]',                   notes: 'ISO week numbers in Week title + Month first-day label. No dedicated column yet.', compatible: 'partial' },
   // Per-event fields
   { fcOption: 'event.url',                     dsInput: 'CalendarEvent.url',               notes: 'Opens URL in new tab on click.', compatible: 'full' },
   { fcOption: 'event.display',                 dsInput: 'CalendarEvent.display',           notes: "'background'/'none' supported.", compatible: 'partial' },
